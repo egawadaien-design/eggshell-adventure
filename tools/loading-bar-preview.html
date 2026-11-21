@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<!--
+  登入／預載畫面進度條樣式預覽（開發用工具，不進遊戲流程）
+  用真正的 createjs 0.7.1 畫在同尺寸的 700×800 舞台上，所見即所得，
+  選定之後把對應的 draw 函式搬回 game.js 的 DNLoadingBar 即可。
+
+  @author DaiEn
+  @Date 2026-11-16
+  @Correction 1
+-->
+<html lang="zh-Hant">
+
+<head>
+	<meta charset="UTF-8">
+	<title>進度條樣式預覽</title>
+	<style>
+		html, body {
+			margin: 0;
+			padding: 0;
+			background: #080808;
+			color: #ddd;
+			font-family: Verdana, "Microsoft JhengHei", sans-serif;
+			-webkit-font-smoothing: antialiased;
+		}
+
+		.sheet {
+			display: grid;
+			grid-template-columns: repeat(3, 700px);
+			gap: 6px;
+			padding: 6px;
+			width: max-content;
+		}
+
+		.cell {
+			background: #000;
+			padding-bottom: 4px;
+		}
+
+		.cell canvas {
+			display: block;
+			width: 700px;
+			height: 800px;
+		}
+
+		.cap {
+			padding: 6px 8px 2px;
+			font-size: 13px;
+			letter-spacing: .06em;
+			color: #9a9a9a;
+		}
+
+		.cap b {
+			color: #f0d7a0;
+			font-weight: bold;
+			letter-spacing: .12em;
+		}
+
+		.single {
+			margin: 0;
+			padding: 0;
+		}
+
+		.single canvas {
+			display: block;
+			width: 700px;
+			height: 800px;
+		}
+
+		/* 只裁中間一條，方便近距離比較細節 */
+		.crops {
+			display: grid;
+			grid-template-columns: repeat(2, 700px);
+			gap: 8px;
+			padding: 8px;
+			width: max-content;
+		}
+
+		.cropCell {
+			background: #000;
+		}
+
+		.cropWin {
+			position: relative;
+			width: 700px;
+			height: 320px;
+			overflow: hidden;
+		}
+
+		.cropWin canvas {
+			position: absolute;
+			left: 0;
+			top: -240px;
+			width: 700px;
+			height: 800px;
+		}
+	</style>
+</head>
+
+<body>
+	<div id="host"></div>
+
+	<script src="../js/createjs/easeljs-0.7.1.min.js"></script>
+	<script>
+		/**
+		 * 進度條樣式預覽
+		 *
+		 * 每個樣式都是「照真正的畫法畫」：全部用 createjs.Graphics 的
+		 * 圓角矩形、漸層填色、描邊疊出光暈，沒有用濾鏡或外部圖檔，
+		 * 所以在手機 WebView 上的表現跟遊戲裡完全一樣。
+		 */
+
+		// 畫布邏輯尺寸，跟遊戲一致
+			var STAGE_W = 700,
+			STAGE_H = 800;
+
+		// 進度條本體寬度、中心點
+			var BAR_W = 300,
+			CX = STAGE_W / 2,
+			CY = STAGE_H / 2;
+
+		/**
+		 * 圓角矩形，半徑自動夾住不越界
+		 * @param {createjs.Graphics} g
+		 * @param {number} x
+		 * @param {number} y
+		 * @param {number} w
+		 * @param {number} h
+		 * @param {number} r
+		 */
+		function rr(g, x, y, w, h, r) {
+			if (w <= 0 || h <= 0) {
+				return;
+			}
+			// 半徑超過一半會畫出奇怪的形狀，先夾
+			r = Math.min(r, w / 2, h / 2);
+			g.drawRoundRect(x, y, w, h, r);
+		}
+
+		/**
+		 * 文字（createjs.Text 的簡寫，全部置中對齊）
+		 * @param {string} str
+		 * @param {string} font
+		 * @param {string} color
+		 * @param {number} y 基線位置
+		 * @returns {createjs.Text}
+		 */
+		function label(str, font, color, y) {
+			var t = new createjs.Text(str, font, color);
+			t.textAlign = "center";
+			t.x = 0;
+			t.y = y;
+			return t;
+		}
+
+		/**
+		 * 用折線畫圓弧（easeljs 0.7.1 的 Graphics 沒有 arc，自己切段最保險）
+		 * @param {createjs.Graphics} g
+		 * @param {number} cx
+		 * @param {number} cy
+		 * @param {number} r
+		 * @param {number} from 起始角（度）
+		 * @param {number} to 結束角（度）
+		 */
+		function arc(g, cx, cy, r, from, to) {
+			var steps = Math.max(8, Math.round(Math.abs(to - from) / 3));
+			for (var i = 0; i <= steps; i++) {
+				var a = (from + (to - from) * (i / steps)) * Math.PI / 180;
+				var x = cx + Math.cos(a) * r;
+				var py = cy + Math.sin(a) * r;
+				if (i === 0) {
+					g.moveTo(x, py);
+				} else {
+					g.lineTo(x, py);
+				}
+			}
+		}
+
+		/**
+		 * 填充前端的光點（讓進度看起來有「正在推進」的動感）
+		 * @param {createjs.Container} root
+		 * @param {number} x
+		 * @param {number} y
+		 * @param {string} color
+		 * @param {number} scale
+		 */
+		function headGlow(root, x, y, color, scale) {
+			// 外圈淡、內圈實，兩層就好，太多層在低階手機上反而糊
+			var g = new createjs.Shape();
+			g.graphics.beginFill(color).drawCircle(0, 0, 10 * scale);
+			g.alpha = 0.16;
+			g.x = x;
+			g.y = y;
+			root.addChild(g);
+
+			var core = new createjs.Shape();
+			core.graphics.beginFill(color).drawCircle(0, 0, 3.5 * scale);
+			core.x = x;
+			core.y = y;
+			root.addChild(core);
+		}
+
+		// ------------------------------------------------------------------
+		// A｜現況（對照組，跟目前 game.js 的 DNLoadingBar 一樣）
+		// ------------------------------------------------------------------
+		function drawCurrent(root, p) {
+			var text = label("Loading: " + Math.round(p * 100) + "%", "bold 35px Verdana", "#ffffff", -10);
+			root.addChild(text);
+
+			var frame = new createjs.Shape();
+			frame.graphics.beginFill("#666666").drawRect(-BAR_W / 2 - 4, 56, BAR_W + 8, 48);
+			root.addChild(frame);
+
+			var fill = new createjs.Shape();
+			fill.graphics.beginFill("#ffffff").drawRect(-BAR_W / 2, 60, BAR_W * p, 40);
+			root.addChild(fill);
+		}
+
+		// ------------------------------------------------------------------
+		// B｜磨砂膠囊（低調、現代，最接近現在的比例，換掉那條灰色外框）
+		// ------------------------------------------------------------------
+		function drawGlass(root, p) {
+			root.addChild(label("LOADING", "13px Verdana", "#8d8d8d", -30));
+			root.addChild(label(Math.round(p * 100) + "%", "bold 36px Verdana", "#ffffff", 6));
+
+			var h = 22,
+				y = 56,
+				r = 11;
+
+			// 軌道：上暗下亮的垂直漸層，做出凹槽感
+			var track = new createjs.Shape();
+			track.graphics.beginLinearGradientFill(["#383838", "#161616"], [0, 1], 0, y, 0, y + h);
+			rr(track.graphics, -BAR_W / 2, y, BAR_W, h, r);
+			root.addChild(track);
+
+			// 凹槽內上緣的陰影
+			var inner = new createjs.Shape();
+			inner.graphics.beginFill("rgba(0,0,0,0.55)");
+			rr(inner.graphics, -BAR_W / 2 + 2, y + 2, BAR_W - 4, 4, 2);
+			root.addChild(inner);
+
+			// 填充：白→淺灰，右端圓頭，看起來像被灌進去而不是被裁掉
+			var fill = new createjs.Shape();
+			fill.graphics.beginLinearGradientFill(["#ffffff", "#f2f2f2", "#d8d8d8"], [0, .6, 1], -BAR_W / 2, 0, BAR_W / 2, 0);
+			rr(fill.graphics, -BAR_W / 2, y, BAR_W * p, h, r);
+			root.addChild(fill);
+
+			// 玻璃反光：一條細白線貼在上緣，跨過整條軌道
+			var gloss = new createjs.Shape();
+			gloss.graphics.beginLinearGradientFill(["rgba(255,255,255,0.55)", "rgba(255,255,255,0)"], [0, 1], 0, y + 3, 0, y + h / 2);
+			rr(gloss.graphics, -BAR_W / 2 + 3, y + 3, BAR_W - 6, h / 2 - 1, r - 2);
+			root.addChild(gloss);
+
+			// 軌道外框：極細的一圈白，界定邊界但不會搶戲
+			var rim = new createjs.Shape();
+			rim.graphics.beginStroke("rgba(255,255,255,0.16)").setStrokeStyle(1);
+			rr(rim.graphics, -BAR_W / 2, y, BAR_W, h, r);
+			root.addChild(rim);
+
+			// 下緣的一道細反光，讓膠囊有厚度
+			var bottomLight = new createjs.Shape();
+			bottomLight.graphics.beginFill("rgba(255,255,255,0.07)");
+			rr(bottomLight.graphics, -BAR_W / 2 + 3, y + h - 2, BAR_W - 6, 1, 1);
+			root.addChild(bottomLight);
+
+			headGlow(root, -BAR_W / 2 + BAR_W * p - 8, y + h / 2, "rgba(255,255,255,0.9)", 0.9);
+		}
+
+		// ------------------------------------------------------------------
+		// C｜沙與金（埃及題材，金色漸層＋刻度尺，數字用襯線體）
+		// ------------------------------------------------------------------
+		function drawGold(root, p) {
+			root.addChild(label("L O A D I N G", "13px Georgia", "#a98a55", -36));
+			root.addChild(label(Math.round(p * 100) + "%", "bold 40px Georgia", "#f4e0b6", -2));
+
+			var y = 62,
+				h = 16,
+				r = 8;
+
+			// 上方刻度：已經走過的是金色，還沒到的留在暗處
+			var ticks = new createjs.Shape();
+			for (var i = 0; i <= 24; i++) {
+				var tx = -BAR_W / 2 + BAR_W * (i / 24);
+				var live = (i / 24) <= p;
+				ticks.graphics.beginFill(live ? "rgba(245,196,92,0.85)" : "rgba(120,96,56,0.45)");
+				ticks.graphics.drawRect(tx - 1, 46, 2, live ? 12 : 7);
+			}
+			root.addChild(ticks);
+
+			// 軌道：深褐底＋細金邊
+			var track = new createjs.Shape();
+			track.graphics.beginFill("#1b1409");
+			rr(track.graphics, -BAR_W / 2, y, BAR_W, h, r);
+			root.addChild(track);
+
+			var rim = new createjs.Shape();
+			rim.graphics.beginStroke("rgba(150,115,60,0.85)").setStrokeStyle(1);
+			rr(rim.graphics, -BAR_W / 2, y, BAR_W, h, r);
+			root.addChild(rim);
+
+			// 填充：米白→金→銅，模擬流沙
+			var fill = new createjs.Shape();
+			fill.graphics.beginLinearGradientFill(["#ffeab8", "#f5c25c", "#d98a2a"], [0, .55, 1], -BAR_W / 2, 0, BAR_W / 2, 0);
+			rr(fill.graphics, -BAR_W / 2, y, BAR_W * p, h, r);
+			root.addChild(fill);
+
+			// 填充上緣的一條亮線，讓金色有厚度
+			var sheen = new createjs.Shape();
+			sheen.graphics.beginFill("rgba(255,246,214,0.55)");
+			rr(sheen.graphics, -BAR_W / 2 + 1, y + 2, Math.max(0, BAR_W * p - 2), 3, 2);
+			root.addChild(sheen);
+
+			headGlow(root, -BAR_W / 2 + BAR_W * p - 3, y + h / 2, "rgba(255,214,120,1)", 1.1);
+		}
+
+		// ------------------------------------------------------------------
+		// D｜刻度細帶（沒有膠囊，只有刻度與大數字，留白最多）
+		// ------------------------------------------------------------------
+		function drawTape(root, p) {
+			root.addChild(label("LOADING", "12px Verdana", "#7f7f7f", -26));
+			root.addChild(label(Math.round(p * 100) + "%", "bold 52px Verdana", "#ffffff", 0));
+
+			var baseY = 92;
+
+			// 底線：一條幾乎看不見的水平線，把刻度兜起來
+			var base = new createjs.Shape();
+			base.graphics.beginFill("rgba(255,255,255,0.18)").drawRect(-BAR_W / 2, baseY, BAR_W, 1);
+			root.addChild(base);
+
+			// 每 10px 一根刻度，走過的亮、沒到的暗
+			var ticks = new createjs.Shape();
+			for (var tx = -BAR_W / 2; tx <= BAR_W / 2; tx += 10) {
+				var live = tx <= -BAR_W / 2 + BAR_W * p;
+				var tall = (Math.round((tx + BAR_W / 2) / 10) % 5 === 0);
+				ticks.graphics.beginFill(live ? "rgba(255,255,255,0.95)" : "rgba(255,255,255,0.16)");
+				ticks.graphics.drawRect(tx - 1, baseY - (tall ? 10 : 5), 2, tall ? 10 : 5);
+			}
+			root.addChild(ticks);
+
+			// 頭的位置用一根亮線＋一點亮點標出來。
+			// 這裡刻意不用光暈：白色的暈疊在黑底上會變成灰糊一團，看起來像污點
+			var hx = -BAR_W / 2 + BAR_W * p;
+			var head = new createjs.Shape();
+			head.graphics.beginFill("rgba(255,255,255,0.9)").drawRect(hx - 1, baseY - 18, 3, 18);
+			root.addChild(head);
+
+			var dot = new createjs.Shape();
+			dot.graphics.beginFill("#ffffff").drawCircle(hx, baseY - 18, 3);
+			root.addChild(dot);
+		}
+
+		// ------------------------------------------------------------------
+		// E｜荷魯斯之環（把橫條換成圓環，構圖整個不一樣）
+		// ------------------------------------------------------------------
+		function drawRing(root, p) {
+			var cy = 8,
+				r = 96,
+				thick = 12;
+
+			// 外圈一道極細的裝飾線（不用放射狀刻度：沒旋轉的短橫條貼在圓上會歪掉）
+			var outer = new createjs.Shape();
+			outer.graphics.beginStroke("rgba(242,193,78,0.28)").setStrokeStyle(1);
+			outer.graphics.drawCircle(0, cy, r + 22);
+			root.addChild(outer);
+
+			// 圓周上四根方位刻度，埃及羅盤的感覺
+			var ticks = new createjs.Shape();
+			for (var i = 0; i < 4; i++) {
+				var a = (i / 4) * Math.PI * 2 - Math.PI / 2;
+				var tx = Math.cos(a) * (r + 22);
+				var ty = cy + Math.sin(a) * (r + 22);
+				ticks.graphics.beginFill("rgba(242,193,78,0.55)");
+				ticks.graphics.drawCircle(tx, ty, 2.2);
+			}
+			root.addChild(ticks);
+
+			// 灰色軌道
+			var track = new createjs.Shape();
+			track.graphics.beginStroke("rgba(255,255,255,0.13)").setStrokeStyle(thick);
+			track.graphics.drawCircle(0, cy, r);
+			root.addChild(track);
+
+			// 進度弧：從正上方順時針。0% 時整段不畫，不然端點圓頭會留下一顆金色小點
+			if (p > 0.001) {
+				var arcShape = new createjs.Shape();
+				arcShape.graphics.beginStroke("#f2c14e").setStrokeStyle(thick);
+				var end = -90 + 360 * p;
+				arc(arcShape.graphics, 0, cy, r, -90, end);
+				root.addChild(arcShape);
+
+				// 弧線兩端補上圓頭，不然切口是斜的、看起來很硬
+				var capA = (end) * Math.PI / 180;
+				var caps = new createjs.Shape();
+				caps.graphics.beginFill("#f2c14e");
+				caps.graphics.drawCircle(0, cy - r, thick / 2);
+				caps.graphics.drawCircle(Math.cos(capA) * r, cy + Math.sin(capA) * r, thick / 2);
+				root.addChild(caps);
+
+				// 弧線外緣的一道亮邊
+				var edge = new createjs.Shape();
+				edge.graphics.beginStroke("rgba(255,238,190,0.55)").setStrokeStyle(2);
+				arc(edge.graphics, 0, cy, r - thick / 2 + 1, -90, end);
+				root.addChild(edge);
+			}
+
+			root.addChild(label(Math.round(p * 100) + "%", "bold 50px Verdana", "#ffffff", cy - 28));
+			root.addChild(label("LOADING", "12px Verdana", "#8d8d8d", cy + 34));
+		}
+
+		// ------------------------------------------------------------------
+		// F｜霓虹雙軌（偏電玩的冷色發光，適合做特殊活動）
+		// ------------------------------------------------------------------
+		function drawNeon(root, p) {
+			root.addChild(label("LOADING", "13px Verdana", "#3fc9d6", -30));
+			root.addChild(label(Math.round(p * 100) + "%", "bold 38px Verdana", "#ffffff", 4));
+
+			var y = 58,
+				h = 10,
+				r = 5;
+
+			var track = new createjs.Shape();
+			track.graphics.beginFill("#08171b");
+			rr(track.graphics, -BAR_W / 2, y, BAR_W, h, r);
+			root.addChild(track);
+
+			var rim = new createjs.Shape();
+			rim.graphics.beginStroke("rgba(63,201,214,0.35)").setStrokeStyle(1);
+			rr(rim.graphics, -BAR_W / 2, y, BAR_W, h, r);
+			root.addChild(rim);
+
+			// 三層描邊疊出外發光（不用濾鏡，手機才跑得動）
+			var glow = new createjs.Shape();
+			var widths = [24, 14, 7];
+			var alphas = [0.06, 0.12, 0.28];
+			for (var i = 0; i < widths.length; i++) {
+				glow.graphics.beginStroke("rgba(63,224,230," + alphas[i] + ")").setStrokeStyle(widths[i]);
+				rr(glow.graphics, -BAR_W / 2, y, BAR_W * p, h, r);
+			}
+			root.addChild(glow);
+
+			var fill = new createjs.Shape();
+			fill.graphics.beginLinearGradientFill(["#2bd2db", "#a6f7ff"], [0, 1], 0, y, 0, y + h);
+			rr(fill.graphics, -BAR_W / 2, y, BAR_W * p, h, r);
+			root.addChild(fill);
+
+			// 填充前端的一小段高亮，像光停在頭上一樣
+			var headX = -BAR_W / 2 + BAR_W * p;
+			var scan = new createjs.Shape();
+			scan.graphics.beginFill("rgba(255,255,255,0.45)");
+			rr(scan.graphics, headX - 26, y + 2, 26, h - 4, r - 2);
+			root.addChild(scan);
+
+			headGlow(root, -BAR_W / 2 + BAR_W * p - 4, y + h / 2, "rgba(120,240,255,1)", 1.15);
+		}
+
+		var VARIANTS = [
+			{ id: "cur", name: "A｜現況", note: "目前 game.js 的樣子（對照）", draw: drawCurrent },
+			{ id: "glass", name: "B｜磨砂膠囊", note: "圓角、內凹、白灰漸層，最安全的一版", draw: drawGlass },
+			{ id: "gold", name: "C｜沙與金", note: "金色漸層＋刻度，埃及題材", draw: drawGold },
+			{ id: "tape", name: "D｜刻度細帶", note: "沒有膠囊，只有刻度與大數字", draw: drawTape },
+			{ id: "ring", name: "E｜荷魯斯之環", note: "改成圓環，構圖完全不同", draw: drawRing },
+			{ id: "neon", name: "F｜霓虹雙軌", note: "冷色發光，適合特殊節慶活動", draw: drawNeon }
+		];
+
+		/**
+		 * 把某個樣式畫到畫布上
+		 * 每格只建一次 Stage，之後只清掉子物件重畫，
+		 * 不然動畫跑起來每一幀都在建 Stage，低階手機會喘
+		 *
+		 * @param {HTMLCanvasElement} canvas
+		 * @param {Function} drawFn
+		 * @param {number} progress 0~1
+		 * @param {Object=} cache 由呼叫端保存的 { stage, root }，不傳就每次重畫
+		 */
+		function render(canvas, drawFn, progress, cache) {
+			var stage, root;
+
+			if (cache && cache.stage) {
+				stage = cache.stage;
+				root = cache.root;
+				while (root.getNumChildren() > 0) {
+					root.removeChild(root.getChildAt(0));
+				}
+			} else {
+				stage = new createjs.Stage(canvas);
+				root = new createjs.Container();
+				root.x = CX;
+				root.y = CY;
+				stage.addChild(root);
+				if (cache) {
+					cache.stage = stage;
+					cache.root = root;
+				}
+			}
+
+			drawFn(root, progress);
+			stage.update();
+		}
+
+		/**
+		 * 讀 URL 參數（不用 URLSearchParams，相容舊 WebView 除錯時的行為）
+		 */
+		function getParam(name) {
+			var m = new RegExp("[?&]" + name + "=([^&]*)").exec(location.search);
+			return m ? decodeURIComponent(m[1]) : null;
+		}
+
+		(function() {
+			var only = getParam("only");
+			var host = document.getElementById("host");
+			var progress = getParam("p") ? parseFloat(getParam("p")) : 0.27;
+			var isStatic = getParam("static") === "1";
+
+			// 單一樣式全尺寸（截圖用）
+			if (only) {
+				var one = VARIANTS.filter(function(v) { return v.id === only; })[0] || VARIANTS[0];
+				host.className = "single";
+				var c = document.createElement("canvas");
+				c.width = STAGE_W;
+				c.height = STAGE_H;
+				host.appendChild(c);
+				render(c, one.draw, progress);
+				return;
+			}
+
+			// 只裁中間一條（近距離比較用，截圖交付時就是這個比例）
+			if (getParam("crop") === "1") {
+				host.className = "crops";
+
+				VARIANTS.forEach(function(v) {
+					var cell = document.createElement("div");
+					cell.className = "cropCell";
+
+					var win = document.createElement("div");
+					win.className = "cropWin";
+					var c = document.createElement("canvas");
+					c.width = STAGE_W;
+					c.height = STAGE_H;
+					win.appendChild(c);
+					cell.appendChild(win);
+
+					var cap = document.createElement("div");
+					cap.className = "cap";
+					cap.innerHTML = "<b>" + v.name + "</b> " + v.note;
+					cell.appendChild(cap);
+
+					host.appendChild(cell);
+					render(c, v.draw, progress);
+				});
+				return;
+			}
+
+			// 總覽：六格並排
+			host.className = "sheet";
+			var clocks = [];
+
+			VARIANTS.forEach(function(v) {
+				var cell = document.createElement("div");
+				cell.className = "cell";
+
+				var c = document.createElement("canvas");
+				c.width = STAGE_W;
+				c.height = STAGE_H;
+				cell.appendChild(c);
+
+				var cap = document.createElement("div");
+				cap.className = "cap";
+				cap.innerHTML = "<b>" + v.name + "</b> " + v.note;
+				cell.appendChild(cap);
+
+				host.appendChild(cell);
+				var cache = {};
+				render(c, v.draw, progress, cache);
+				clocks.push({ canvas: c, draw: v.draw, cache: cache });
+			});
+
+			if (isStatic) {
+				return;
+			}
+
+			// 動起來：讓每一格都用同一個節奏跑 0→100%，看起來才公平
+			var start = Date.now();
+			(function tick() {
+				var t = ((Date.now() - start) % 6000) / 6000;
+				// 前段稍慢、後段稍快，模擬真實下載的手感
+				var p = Math.min(1, Math.pow(t, 0.85));
+				clocks.forEach(function(it) { render(it.canvas, it.draw, p, it.cache); });
+				requestAnimationFrame(tick);
+			})();
+		})();
+	</script>
+</body>
+
+</html>

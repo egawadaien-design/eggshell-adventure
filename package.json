@@ -1,0 +1,15 @@
+{
+  "name": "eggshell-cat-web",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "EggshellCatWeb — 部署根即本資料夾；Vercel Node Serverless Functions 同層承接 /api/*，其餘為前端靜態資源",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "dev": "vercel dev"
+  },
+  "dependencies": {},
+  "devDependencies": {}
+}

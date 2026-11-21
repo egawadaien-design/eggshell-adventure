@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<!--
+	NPC 行走動作＋廣告圖組獨立預覽（開發用工具，不進遊戲流程）
+	NPC 區：自動掃描 images.js 裡 npc01~06 的行走圖集，四向並排循環播放；
+	廣告區：讀取 ads.js，逐組載入 branding 圖組播放，點擊可前往設定網址。
+
+	@author DaiEn
+	@Date 2026-11-21
+	@Correction 4
+-->
+<html lang="zh-Hant">
+
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>NPC 動作預覽 · EggshellCat</title>
+	<style>
+		:root {
+			--paper: #F8F1E1;
+			--card: #FFFBF1;
+			--sand: #EADCC0;
+			--ink: #241D14;
+			--ink-2: #5C5140;
+			--line: #D3BE98;
+			--gold: #A3742A;
+			--teal: #1B5B54;
+			--font: "Microsoft JhengHei", "PingFang TC", "Noto Sans TC", "Segoe UI", sans-serif;
+			--mono: "Cascadia Code", "Consolas", "Courier New", monospace;
+		}
+
+		* { box-sizing: border-box; }
+
+		body {
+			margin: 0;
+			color: var(--ink);
+			background-color: var(--paper);
+			background-image: radial-gradient(rgba(36, 29, 20, 0.05) 1px, transparent 1px);
+			background-size: 5px 5px;
+			font: 15px/1.55 var(--font);
+			-webkit-text-size-adjust: 100%;
+		}
+
+		.bar {
+			padding: 22px 18px 14px;
+			border-bottom: 1px solid var(--line);
+		}
+
+		.bar h1 {
+			margin: 0 0 4px;
+			font-size: 23px;
+			letter-spacing: -0.01em;
+		}
+
+		.bar .sub {
+			color: var(--ink-2);
+			font-size: 13px;
+		}
+
+		.bar .sub b {
+			color: var(--gold);
+			font-family: var(--mono);
+		}
+
+		.host {
+			display: flex;
+			flex-wrap: wrap;
+			gap: 16px;
+			padding: 18px;
+		}
+
+		.card {
+			background: var(--card);
+			border: 1px solid var(--line);
+			border-radius: 12px;
+			padding: 12px 14px 14px;
+			box-shadow: 0 2px 6px rgba(36, 29, 20, 0.08);
+		}
+
+		.card h2 {
+			margin: 0 0 2px;
+			font-size: 15px;
+			font-family: var(--mono);
+			color: var(--teal);
+		}
+
+		.card .meta {
+			color: var(--ink-2);
+			font-size: 12px;
+			margin-bottom: 10px;
+		}
+
+		.grid {
+			display: grid;
+			grid-template-columns: repeat(4, 110px);
+			gap: 8px;
+		}
+
+		.cell {
+			background: #f3ead6;
+			border: 1px solid var(--sand);
+			border-radius: 8px;
+			overflow: hidden;
+		}
+
+		.cell canvas {
+			display: block;
+			width: 110px;
+			height: 150px;
+		}
+
+		.cell .cap {
+			padding: 4px 0 5px;
+			text-align: center;
+			font-size: 12px;
+			color: var(--ink-2);
+			letter-spacing: .08em;
+		}
+
+		.cell .cap .n {
+			font-family: var(--mono);
+			color: var(--gold);
+		}
+
+		.cell.bad .cap {
+			color: #8E3C1D;
+		}
+
+		.note {
+			padding: 0 18px 24px;
+			color: var(--ink-2);
+			font-size: 13px;
+		}
+
+		.section-bar {
+			padding: 18px 18px 0;
+		}
+
+		.section-bar h1 {
+			margin: 0 0 4px;
+			font-size: 23px;
+			letter-spacing: -0.01em;
+		}
+
+		.section-bar .sub {
+			color: var(--ink-2);
+			font-size: 13px;
+		}
+
+		.section-bar .sub b {
+			color: var(--gold);
+			font-family: var(--mono);
+		}
+
+		.ad-host {
+			display: flex;
+			flex-wrap: wrap;
+			gap: 16px;
+			padding: 18px;
+		}
+
+		.ad-card canvas {
+			display: block;
+			width: 180px;
+			height: 110px;
+			background: #f3ead6;
+			border: 1px solid var(--sand);
+			border-radius: 8px;
+		}
+
+		.ad-card .url {
+			margin-top: 6px;
+			font-family: var(--mono);
+			font-size: 11px;
+			color: var(--ink-2);
+			word-break: break-all;
+		}
+
+		.ad-card.bad canvas {
+			opacity: 0.35;
+		}
+	</style>
+</head>
+
+<body>
+	<div class="bar">
+		<h1>NPC 行走動作預覽</h1>
+		<div class="sub">每 <b>220ms</b> 換一格，格序 0→1→2→3 循環；縮放與腳底基線對齊遊戲端 npc_walker.js</div>
+	</div>
+
+	<div id="host" class="host"></div>
+	<div id="note" class="note"></div>
+
+	<div class="section-bar">
+		<h1>廣告動畫預覽</h1>
+		<div class="sub">讀取 <b>ads.js</b>，逐組載入播放；<b>loopCount 0</b> 為無限循環，其餘數字為循環次數，點擊圖前往設定網址</div>
+	</div>
+	<div id="adHost" class="ad-host"></div>
+
+	<script src="../../js/createjs/easeljs-0.7.1.min.js"></script>
+	<script src="../../js/images.js"></script>
+	<script src="../../js/ads.js"></script>
+	<script>
+		/**
+		 * NPC 動作預覽
+		 *
+		 * 直接吃 images.js 的 athlases 圖集定義，圖檔用 new Image() 載入後
+		 * 交給 createjs.SpriteSheet，跟遊戲端是同一套格表與動畫名；
+		 * 不經過 game.js 的資源管理器，所以這頁可以獨立打開除錯。
+		 */
+
+		// 對齊 npc_walker.js 的 CELL 常數
+		var CELL = {
+			w: 96,
+			h: 128,
+			baseline: 123,
+			scale: 0.92
+		};
+
+		// 與 MOVE.stepIntervalMs 一致：每 220ms 推進一格
+		var STEP_MS = 220;
+
+		// 方向順序與標籤
+		var DIRS = [
+			{ key: "back", label: "後" },
+			{ key: "right", label: "右" },
+			{ key: "front", label: "前" },
+			{ key: "left", label: "左" }
+		];
+
+		// 單格畫布邏輯尺寸（角色縮放後身高約 113，四周留白方便看邊緣）
+		var CANVAS_W = 110,
+			CANVAS_H = 150,
+			GROUND_Y = 132;
+
+		// 只認正規六隻行走圖集（npc01~06_walk）
+		function isNpcWalk(atlas) {
+			return atlas && atlas.images && atlas.images[0] && /^npc\/npc0[1-6]_walk$/.test(atlas.images[0]);
+		}
+
+		/**
+		 * 從一組動畫表裡，把四向動畫名抓出來；缺哪一向就回 null
+		 * @param {Object} animations atlas.animations
+		 * @returns {Object} { back, right, front, left }
+		 */
+		function pickDirAnims(animations) {
+			var out = { back: null, right: null, front: null, left: null };
+			if (!animations) { return out; }
+			Object.keys(animations).forEach(function(name) {
+				DIRS.forEach(function(d) {
+					if (name.slice(-("_" + d.key).length) === "_" + d.key) {
+						out[d.key] = name;
+					}
+				});
+			});
+			return out;
+		}
+
+		/**
+		 * 建立一個方向播放器
+		 * @param {HTMLCanvasElement} canvas
+		 * @param {createjs.SpriteSheet} sheet
+		 * @param {string} animName
+		 * @returns {Object|null} 播放器狀態；動畫不存在回 null
+		 */
+		function makePlayer(canvas, sheet, animName) {
+			if (!animName || !sheet.getAnimation(animName)) { return null; }
+
+			var stage = new createjs.Stage(canvas);
+			var root = new createjs.Container();
+			root.x = CANVAS_W / 2;
+			root.y = GROUND_Y;
+			stage.addChild(root);
+
+			var sprite = new createjs.Sprite(sheet);
+			sprite.scaleX = sprite.scaleY = CELL.scale;
+			sprite.x = -(CELL.w / 2) * CELL.scale;
+			sprite.y = -CELL.baseline * CELL.scale;
+			sprite.mouseEnabled = false;
+			root.addChild(sprite);
+
+			var animInfo = sheet.getAnimation(animName);
+			var frames = (animInfo.frames && animInfo.frames.length) ? animInfo.frames : [0];
+
+			var player = {
+				stage: stage,
+				sprite: sprite,
+				frames: frames,
+				index: 0,
+				clockMs: 0
+			};
+			sprite.gotoAndStop(frames[0]);
+			stage.update();
+			return player;
+		}
+
+		/**
+		 * 推進一個播放器：累計時間，滿 STEP_MS 才換下一格，格序在該向 frames 內循環
+		 * @param {Object} player
+		 * @param {number} dt 距離上一幀的毫秒數
+		 */
+		function stepPlayer(player, dt) {
+			player.clockMs += dt;
+			while (player.clockMs >= STEP_MS) {
+				player.clockMs -= STEP_MS;
+				player.index = (player.index + 1) % player.frames.length;
+				player.sprite.gotoAndStop(player.frames[player.index]);
+			}
+			player.stage.update();
+		}
+
+		var players = [];
+
+		(function() {
+			var host = document.getElementById("host");
+			var note = document.getElementById("note");
+
+			if (!window.athlases || !athlases.length) {
+				note.textContent = "讀不到 images.js 的 athlases，可能是直接用 file:// 開檔被擋；請走本機伺服器開啟。";
+				return;
+			}
+
+			var atlases = athlases.filter(isNpcWalk).sort(function(a, b) {
+				return a.images[0] < b.images[0] ? -1 : 1;
+			});
+
+			if (!atlases.length) {
+				note.textContent = "images.js 裡找不到 npc01~06 行走圖集。";
+				return;
+			}
+
+			atlases.forEach(function(atlas) {
+				var rel = atlas.images[0];              // npc/npc05_walk
+				var id = rel.split("/")[1];             // npc05_walk
+				var anims = pickDirAnims(atlas.animations);
+
+				var card = document.createElement("div");
+				card.className = "card";
+
+				var h2 = document.createElement("h2");
+				h2.textContent = id;
+				card.appendChild(h2);
+
+				var meta = document.createElement("div");
+				meta.className = "meta";
+				meta.textContent = "共 " + atlas.frames.length + " 格";
+				card.appendChild(meta);
+
+				var grid = document.createElement("div");
+				grid.className = "grid";
+
+				DIRS.forEach(function(d) {
+					var cell = document.createElement("div");
+					cell.className = "cell";
+
+					var canvas = document.createElement("canvas");
+					canvas.width = CANVAS_W;
+					canvas.height = CANVAS_H;
+					cell.appendChild(canvas);
+
+					var cap = document.createElement("div");
+					cap.className = "cap";
+					cap.innerHTML = "<span>" + d.label + "</span> <span class='n'></span>";
+					cell.appendChild(cap);
+
+					grid.appendChild(cell);
+
+					var animName = anims[d.key];
+					if (!animName) {
+						cell.className += " bad";
+						cap.innerHTML = "<span>" + d.label + "</span> <span class='n'>缺</span>";
+						return;
+					}
+
+					var img = new Image();
+					img.onload = function() {
+						var sheet = new createjs.SpriteSheet({
+							images: [img],
+							frames: atlas.frames,
+							animations: atlas.animations
+						});
+						var player = makePlayer(canvas, sheet, animName);
+						if (!player) {
+							cell.className += " bad";
+							cap.innerHTML = "<span>" + d.label + "</span> <span class='n'>壞</span>";
+							return;
+						}
+						var info = sheet.getAnimation(animName);
+						cap.querySelector(".n").textContent = info.frames.length + " 格";
+						players.push(player);
+					};
+					img.onerror = function() {
+						cell.className += " bad";
+						cap.innerHTML = "<span>" + d.label + "</span> <span class='n'>404</span>";
+					};
+					img.src = "../../assets/art/" + rel + ".png";
+				});
+
+				card.appendChild(grid);
+				host.appendChild(card);
+			});
+
+			// 統一 rAF：所有播放器共用一個節奏，dt 累計，滿 220ms 換格
+			var last = Date.now();
+			(function tick() {
+				var now = Date.now();
+				var dt = now - last;
+				last = now;
+				for (var i = 0; i < players.length; i++) {
+					stepPlayer(players[i], dt);
+				}
+				requestAnimationFrame(tick);
+			})();
+		})();
+
+		/**
+		 * 廣告動畫預覽
+		 * 直接讀 ads.js 的 Ads.list，逐組預載圖檔後交給 Ads.brandingPic 播放器；
+		 * 不經過 game.js 資源管理器，每張卡片一個獨立 Stage。
+		 */
+		(function() {
+			var host = document.getElementById("adHost");
+
+			if (typeof Ads === "undefined" || !Ads.list || !Ads.list.length) {
+				var empty = document.createElement("div");
+				empty.className = "note";
+				empty.textContent = "讀不到 ads.js 的廣告清單，可能是 file:// 被擋；請走本機伺服器開啟。";
+				document.body.appendChild(empty);
+				return;
+			}
+
+			Ads.list.forEach(function(ad) {
+				var card = document.createElement("div");
+				card.className = "card ad-card";
+
+				var h2 = document.createElement("h2");
+				h2.textContent = ad.id + " · " + ad.animation;
+				card.appendChild(h2);
+
+				var meta = document.createElement("div");
+				meta.className = "meta";
+				var loopText = (!ad.loopCount) ? "無限循環" : "循環 " + ad.loopCount + " 次";
+				meta.textContent = ad.frames.length + " 格 · " + (ad.framerate || 12.5) + " fps · " + loopText;
+				card.appendChild(meta);
+
+				var canvas = document.createElement("canvas");
+				canvas.width = 180;
+				canvas.height = 110;
+				card.appendChild(canvas);
+
+				var urlEl = document.createElement("div");
+				urlEl.className = "url";
+				urlEl.textContent = ad.url || "（無網址）";
+				card.appendChild(urlEl);
+
+				host.appendChild(card);
+
+				var img = new Image();
+				img.onload = function() {
+					// 預覽頁沒有資源管理器，把已載入圖片掛到設定上給播放器取用
+					ad.imageObject = img;
+					var player = Ads.brandingPic(ad);
+
+					if (!player || !player.container) {
+						card.className += " bad";
+						urlEl.textContent = "播放器建立失敗：圖組規格無效";
+						return;
+					}
+
+					var stage = new createjs.Stage(canvas);
+					stage.enableMouseOver();
+
+					var holder = new createjs.Container();
+					holder.x = 180 / 2;
+					holder.y = 110 / 2;
+					holder.addChild(player.container);
+					stage.addChild(holder);
+
+					player.container.cursor = "pointer";
+					player.container.addEventListener("click", function() {
+						player.openLink();
+					});
+
+					createjs.Ticker.addEventListener("tick", stage);
+					stage.update();
+				};
+				img.onerror = function() {
+					card.className += " bad";
+					urlEl.textContent = "404 缺圖：assets/art/" + ad.image + ".png";
+				};
+				img.src = "../../assets/art/" + ad.image + ".png";
+			});
+		})();
+	</script>
+</body>
+
+</html>

@@ -1,0 +1,13 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "",
+  "installCommand": "",
+  "outputDirectory": ".",
+  "rewrites": [
+    { "source": "/api/auth/register", "destination": "/api/auth/register.js" },
+    { "source": "/api/auth/login", "destination": "/api/auth/login.js" },
+    { "source": "/api/save", "destination": "/api/save.js" },
+    { "source": "/api/save/update", "destination": "/api/save/update.js" },
+    { "source": "/api/leaderboard", "destination": "/api/leaderboard.js" }
+  ]
+}

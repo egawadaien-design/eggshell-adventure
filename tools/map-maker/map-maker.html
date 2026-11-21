@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<!--
+	選關地圖障礙點編輯工具
+	下拉選單讀 Maps.groups → maps（大關 → 地圖分頁）→ 700×800 畫板載入底圖與既有景觀，
+	32×32 網格點選標示 NPC 不可通行區；景觀可拖動改位置；輸出獨立障礙資料檔。
+	@author DaiEn
+	@Date 2026-11-18
+	@Correction 10
+-->
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>地圖障礙編輯 · EggshellCat</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%231B5B54'/%3E%3Crect x='6' y='6' width='9' height='9' fill='%234C8FB0'/%3E%3Crect x='17' y='6' width='9' height='9' fill='%23F8F1E1'/%3E%3Crect x='6' y='17' width='9' height='9' fill='%23F8F1E1'/%3E%3Crect x='17' y='17' width='9' height='9' fill='%234C8FB0'/%3E%3C/svg%3E">
+<style>
+:root {
+	--paper: #F8F1E1;
+	--card: #FFFBF1;
+	--sand: #EADCC0;
+	--ink: #241D14;
+	--ink-2: #5C5140;
+	--line: #D3BE98;
+	--gold: #A3742A;
+	--teal: #1B5B54;
+	--teal-deep: #123F3A;
+	--block: #4C8FB0;
+	--block-soft: rgba(76, 143, 176, 0.38);
+	--font: "Microsoft JhengHei", "PingFang TC", "Noto Sans TC", "Segoe UI", sans-serif;
+	--mono: "Cascadia Code", "Consolas", "Courier New", monospace;
+}
+
+* { box-sizing: border-box; }
+
+body {
+	margin: 0;
+	color: var(--ink);
+	background-color: var(--paper);
+	background-image: radial-gradient(rgba(36, 29, 20, 0.05) 1px, transparent 1px);
+	background-size: 5px 5px;
+	font: 16px/1.55 var(--font);
+	-webkit-text-size-adjust: 100%;
+}
+
+/* ---------- 抬頭 ---------- */
+.bar {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 14px 24px;
+	align-items: flex-end;
+	justify-content: space-between;
+	padding: 22px 16px 16px;
+	border-bottom: 1px solid var(--line);
+}
+
+.bar h1 {
+	margin: 0;
+	font-size: 25px;
+	line-height: 1.2;
+	letter-spacing: -0.01em;
+}
+
+.bar h1 em {
+	font-style: normal;
+	color: var(--gold);
+}
+
+.bar p {
+	max-width: 34em;
+	margin: 6px 0 0;
+	font-size: 14px;
+	color: var(--ink-2);
+}
+
+/* ---------- 版面 ---------- */
+.wrap {
+	display: grid;
+	grid-template-columns: minmax(0, 760px) minmax(280px, 360px);
+	gap: 16px;
+	padding: 16px;
+	align-items: start;
+}
+
+@media (max-width: 1080px) {
+	.wrap { grid-template-columns: 1fr; }
+}
+
+.panel {
+	padding: 18px 16px 22px;
+	background: var(--card);
+	min-width: 0;
+	border: 1px solid var(--line);
+}
+
+.panel h2 {
+	margin: 0 0 14px;
+	padding-bottom: 8px;
+	border-bottom: 1px solid var(--sand);
+	font-size: 15px;
+	font-weight: 700;
+	letter-spacing: 0.03em;
+}
+
+.panel h2 span {
+	font-weight: 400;
+	font-size: 13px;
+	color: var(--ink-2);
+	margin-left: 8px;
+	letter-spacing: 0;
+}
+
+/* ---------- 選單列 ---------- */
+.toolbar {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 12px 16px;
+	align-items: center;
+	margin-bottom: 14px;
+}
+
+.field {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+
+.field label {
+	font-size: 12px;
+	color: var(--ink-2);
+	letter-spacing: 0.06em;
+}
+
+select {
+	font: inherit;
+	font-size: 15px;
+	min-height: 44px;
+	padding: 6px 10px;
+	color: var(--ink);
+	background: #FFFDF6;
+	border: 1px solid var(--line);
+	border-radius: 2px;
+	cursor: pointer;
+	max-width: 320px;
+}
+
+button {
+	font: inherit;
+	font-size: 15px;
+	min-height: 44px;
+	padding: 6px 12px;
+	color: var(--ink);
+	background: #FFFDF6;
+	border: 1px solid var(--line);
+	border-radius: 2px;
+	cursor: pointer;
+}
+
+button:hover { background: #F4E8CE; }
+
+button:focus-visible {
+	outline: 2px solid var(--teal);
+	outline-offset: 2px;
+}
+
+button.primary {
+	color: #FFF8E7;
+	background: var(--teal);
+	border-color: var(--teal-deep);
+	font-weight: 700;
+}
+
+button.is-on {
+	color: #FFF8E7;
+	background: var(--teal);
+	border-color: var(--teal-deep);
+}
+
+.hint {
+	margin: 8px 0 0;
+	font-size: 13px;
+	color: var(--ink-2);
+}
+
+.note {
+	margin: 8px 0 0;
+	font-size: 13px;
+	color: var(--brick, #8E3C1D);
+}
+
+/* ---------- 畫板 ---------- */
+.stage {
+	position: relative;
+	width: 700px;
+	max-width: 100%;
+	margin: 0 auto;
+}
+
+#board {
+	display: block;
+	width: 100%;
+	height: auto;
+	background: #EADCC0;
+	border: 1px solid var(--line);
+	cursor: crosshair;
+	touch-action: none;
+}
+
+/* 游標旁浮動座標標籤（定位在 .stage 容器內，跟著滑鼠移動） */
+.cursor-tag {
+	position: absolute;
+	pointer-events: none;
+	padding: 2px 6px;
+	font: 12px/1.3 var(--mono);
+	color: #FFF8E7;
+	background: rgba(18, 63, 58, 0.88);
+	border: 1px solid rgba(255, 248, 231, 0.35);
+	border-radius: 2px;
+	white-space: nowrap;
+	z-index: 5;
+}
+
+.stage-meta {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px 16px;
+	margin-top: 10px;
+	font-size: 13px;
+	color: var(--ink-2);
+	font-variant-numeric: tabular-nums;
+}
+
+.stage-meta b { color: var(--ink); }
+
+/* ---------- 側欄 ---------- */
+.side {
+	display: grid;
+	gap: 16px;
+}
+
+.stats {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(90px, auto));
+	gap: 10px 20px;
+	margin: 0;
+}
+
+.stats dt {
+	font-size: 12px;
+	color: var(--ink-2);
+	letter-spacing: 0.06em;
+}
+
+.stats dd {
+	margin: 0;
+	font-size: 19px;
+	font-weight: 700;
+	line-height: 1.1;
+	font-variant-numeric: tabular-nums;
+}
+
+.obj-list {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+	display: grid;
+	gap: 6px;
+	max-height: 220px;
+	overflow: auto;
+}
+
+.obj-list li {
+	display: flex;
+	justify-content: space-between;
+	gap: 10px;
+	padding: 6px 8px;
+	border: 1px solid var(--sand);
+	background: #FFFDF6;
+	font-size: 13px;
+}
+
+.obj-list li span.coord {
+	font-family: var(--mono);
+	color: var(--ink-2);
+}
+
+/* ---------- 輸出 ---------- */
+.out-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 10px;
+	margin-bottom: 10px;
+}
+
+textarea {
+	width: 100%;
+	min-height: 220px;
+	padding: 10px;
+	font: 13px/1.5 var(--mono);
+	color: var(--ink);
+	background: #FFFDF6;
+	border: 1px solid var(--line);
+	resize: vertical;
+	tab-size: 2;
+}
+
+.steps {
+	margin: 12px 0 0;
+	padding-left: 0;
+	list-style: none;
+	display: grid;
+	gap: 8px;
+	font-size: 13px;
+	color: var(--ink-2);
+}
+
+.steps li {
+	display: flex;
+	gap: 10px;
+}
+
+.steps .num {
+	flex: 0 0 20px;
+	height: 20px;
+	border-radius: 50%;
+	background: var(--teal);
+	color: #FFF8E7;
+	font-size: 12px;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+}
+
+code {
+	font-family: var(--mono);
+	background: var(--sand);
+	padding: 1px 4px;
+	border-radius: 2px;
+}
+</style>
+</head>
+<body>
+
+<header class="bar">
+	<div>
+		<h1>地圖障礙編輯 <em>·</em> NPC 不可通行區</h1>
+		<p>選定一張選關地圖後，在 700×800 畫板上用 32×32 網格點選障礙；既有景觀可直接拖動改位置。障礙資料輸出到獨立的 <code>js/map-obstacles.js</code>，依「大關 → 地圖分頁」兩層保存，切頁不丟上一頁。</p>
+	</div>
+</header>
+
+<main class="wrap">
+
+	<!-- ============ 畫板 ============ -->
+	<section class="panel">
+		<div class="toolbar">
+			<div class="field">
+				<label for="groupSelect">大關（章節）</label>
+				<select id="groupSelect">
+					<option value="">— 請選擇大關 —</option>
+				</select>
+			</div>
+			<div class="field">
+				<label for="pageSelect">地圖分頁（關卡區間由系統讀取）</label>
+				<select id="pageSelect">
+					<option value="">— 請選擇地圖 —</option>
+				</select>
+			</div>
+			<div class="field">
+				<label>工具</label>
+				<div style="display:flex;gap:8px;flex-wrap:wrap">
+					<button type="button" id="toolBlock" class="is-on">標示障礙</button>
+					<button type="button" id="toolErase">擦除障礙</button>
+					<button type="button" id="toolMove">拖動景觀</button>
+				</div>
+			</div>
+			<div class="field">
+				<label>本頁操作</label>
+				<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+					<button type="button" id="btnClear">清空本頁障礙</button>
+					<button type="button" id="btnToggleObjects">隱藏景觀</button>
+				</div>
+			</div>
+		</div>
+
+		<div class="stage">
+			<canvas id="board" width="700" height="800" will-read-frequently="true" aria-label="地圖編輯畫板"></canvas>
+			<div id="cursorTag" class="cursor-tag" hidden></div>
+		</div>
+
+		<div class="stage-meta">
+			<span>目前頁：<b id="metaPage">—</b></span>
+			<span>障礙格：<b id="metaBlock">0</b></span>
+			<span>景觀：<b id="metaObj">0</b></span>
+		</div>
+		<p class="hint" id="artNote">正在載入地圖與圖集…</p>
+	</section>
+
+	<!-- ============ 側欄 ============ -->
+	<div class="side">
+
+		<section class="panel">
+			<h2>本頁景觀 <span>拖動可改位置，座標即時更新</span></h2>
+			<dl class="stats">
+				<dt>景觀數</dt><dd id="statObj">0</dd>
+				<dt>障礙格</dt><dd id="statBlock">0</dd>
+			</dl>
+			<ul class="obj-list" id="objList"></ul>
+		</section>
+
+		<section class="panel">
+			<h2>障礙資料 <span>與 Maps.pages 同結構，輸出 obstacles 陣列</span></h2>
+			<div class="out-actions">
+				<button type="button" class="primary" id="btnCopy">複製內容</button>
+				<button type="button" id="btnDownload">下載 map-obstacles.js</button>
+			</div>
+			<p class="hint" id="actionNote" aria-live="polite"></p>
+			<textarea id="out" readonly spellcheck="false" aria-label="產出的障礙資料內容"></textarea>
+			<ul class="steps">
+				<li><span class="num">1</span><span>產出格式為每頁 <code>obstacles: [{ x, y, r }, ...]</code>，座標是頁內相對座標。</span></li>
+				<li><span class="num">2</span><span>回填 <code>js/map-obstacles.js</code>；遊戲端由 <code>NpcWalker.addPageObstacle(page, x, y, r)</code> 讀入。</span></li>
+				<li><span class="num">3</span><span>景觀的新增／刪除與裁切縮放先不在本工具處理，後續再補。</span></li>
+			</ul>
+		</section>
+
+	</div>
+
+</main>
+
+<script src="../../js/images.js"></script>
+<script src="../../js/i18n.js?v=20261120"></script>
+<script src="../../js/maps.js?v=20261117"></script>
+<script src="../../js/map-obstacles.js?v=20261117"></script>
+<script src="map-maker.js?v=20261117"></script>
+</body>
+</html>

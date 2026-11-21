@@ -1,0 +1,1402 @@
+<!DOCTYPE html>
+<!--
+	關卡產生器控制頁
+	12×8 字模 → 四層浮雕 → 輸出可放進 js/levels 的關卡檔
+	@author DaiEn
+	@Date 2026-11-15
+	@Correction 1
+-->
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>關卡產生器 · EggshellCat</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%231B5B54'/%3E%3Crect x='6' y='4' width='9' height='12' rx='2' fill='%23F8F1E1'/%3E%3Crect x='17' y='9' width='9' height='12' rx='2' fill='%23A3742A'/%3E%3Crect x='11' y='16' width='9' height='12' rx='2' fill='%23F8F1E1'/%3E%3C/svg%3E">
+<style>
+:root {
+	--paper: #F8F1E1;
+	--card: #FFFBF1;
+	--sand: #EADCC0;
+	--ink: #241D14;
+	--ink-2: #5C5140;
+	--line: #D3BE98;
+	--gold: #A3742A;
+	--teal: #1B5B54;
+	--teal-deep: #123F3A;
+	--brick: #8E3C1D;
+	--cell: 44px;
+	--font: "Microsoft JhengHei", "PingFang TC", "Noto Sans TC", "Segoe UI", sans-serif;
+	--mono: "Cascadia Code", "Consolas", "Courier New", monospace;
+}
+
+* { box-sizing: border-box; }
+
+body {
+	margin: 0;
+	color: var(--ink);
+	background-color: var(--paper);
+	background-image: radial-gradient(rgba(36, 29, 20, 0.05) 1px, transparent 1px);
+	background-size: 5px 5px;
+	font: 16px/1.55 var(--font);
+	-webkit-text-size-adjust: 100%;
+}
+
+/* ---------- 抬頭 ---------- */
+.bar {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 14px 24px;
+	align-items: flex-end;
+	justify-content: space-between;
+	padding: 22px 16px 16px;
+	border-bottom: 1px solid var(--line);
+}
+
+.bar h1 {
+	margin: 0;
+	font-size: 25px;
+	line-height: 1.2;
+	letter-spacing: -0.01em;
+}
+
+.bar h1 em {
+	font-style: normal;
+	color: var(--gold);
+}
+
+.bar p {
+	max-width: 34em;
+	margin: 6px 0 0;
+	font-size: 14px;
+	color: var(--ink-2);
+}
+
+.facts {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(74px, auto));
+	gap: 10px 20px;
+	margin: 0;
+	font-variant-numeric: tabular-nums;
+}
+
+.facts dt {
+	font-size: 12px;
+	color: var(--ink-2);
+	letter-spacing: 0.06em;
+}
+
+.facts dd {
+	margin: 0;
+	font-size: 19px;
+	font-weight: 700;
+	line-height: 1.1;
+}
+
+/* ---------- 版面 ---------- */
+.board {
+	display: grid;
+	grid-template-columns: 1fr;
+	gap: 1px;
+	background: var(--line);
+}
+
+.panel {
+	padding: 18px 16px 22px;
+	background: var(--card);
+	/* 讓面板在極窄時不撐破 */
+	min-width: 0;
+}
+
+.panel h2 {
+	margin: 0 0 14px;
+	padding-bottom: 8px;
+	border-bottom: 1px solid var(--sand);
+	font-size: 15px;
+	font-weight: 700;
+	letter-spacing: 0.03em;
+}
+
+.panel h2 span {
+	font-weight: 400;
+	font-size: 13px;
+	color: var(--ink-2);
+	margin-left: 8px;
+	letter-spacing: 0;
+}
+
+/* ---------- 共用按鈕 ---------- */
+button {
+	font: inherit;
+	font-size: 15px;
+	min-height: 44px;
+	padding: 6px 12px;
+	color: var(--ink);
+	background: #FFFDF6;
+	border: 1px solid var(--line);
+	border-radius: 2px;
+	cursor: pointer;
+}
+
+button:hover { background: #F4E8CE; }
+
+button:focus-visible {
+	outline: 2px solid var(--teal);
+	outline-offset: 2px;
+}
+
+button.is-on {
+	color: #FFF8E7;
+	background: var(--teal);
+	border-color: var(--teal-deep);
+}
+
+button.primary {
+	color: #FFF8E7;
+	background: var(--teal);
+	border-color: var(--teal-deep);
+	font-weight: 700;
+}
+
+button.primary:hover { background: var(--teal-deep); }
+
+.row {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+}
+
+/* ---------- 棋子牌組：按鈕上直接放圖集裡的圖 ---------- */
+.pool-btn {
+	width: 48px;
+	height: 60px;
+	min-height: 60px;
+	padding: 3px 0 2px;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: flex-start;
+	gap: 1px;
+}
+
+.pool-btn .thumb {
+	display: block;
+	width: 32px;
+	height: 42px;
+	background-repeat: no-repeat;
+	background-position: 0 0;
+	opacity: 0.9;
+}
+
+.pool-btn .pid {
+	font-size: 11px;
+	line-height: 1.1;
+	font-variant-numeric: tabular-nums;
+	color: var(--ink-2);
+}
+
+.pool-btn.is-on .pid { color: #FFF8E7; }
+.pool-btn.is-on .thumb { opacity: 1; }
+.pool-btn:not(.is-on) .thumb { opacity: 0.55; }
+
+/* ---------- 字模 ---------- */
+.art-scroll {
+	overflow-x: auto;
+	padding: 2px 0 6px;
+	-webkit-overflow-scrolling: touch;
+}
+
+.art-grid {
+	display: grid;
+	grid-template-columns: repeat(12, var(--cell));
+	gap: 2px;
+	justify-content: start;
+	width: max-content;
+	margin: 0 auto;
+	touch-action: none;
+}
+
+.cell {
+	width: var(--cell);
+	height: var(--cell);
+	min-height: 0;
+	padding: 0;
+	background: #FFFDF6;
+	border: 1px solid var(--line);
+	border-radius: 1px;
+}
+
+.cell.on {
+	background: var(--teal);
+	border-color: var(--teal-deep);
+}
+
+.cell.on:hover { background: #17504A; }
+
+.hint {
+	margin: 10px 0 0;
+	font-size: 13px;
+	color: var(--ink-2);
+}
+
+/* ---------- 預覽 ---------- */
+.view-wrap { position: relative; }
+
+#view {
+	display: block;
+	width: 100%;
+	border: 1px solid var(--line);
+	background: #FBF6E9;
+}
+
+.sliders {
+	margin: 16px 0 0;
+	display: grid;
+	gap: 12px;
+}
+
+.slider-row {
+	display: grid;
+	grid-template-columns: 5.2em 1fr 3.4em;
+	gap: 10px;
+	align-items: center;
+	font-size: 14px;
+	font-variant-numeric: tabular-nums;
+}
+
+.slider-row > span:first-child { color: var(--ink-2); }
+.slider-row > span:last-child { text-align: right; font-weight: 600; }
+
+input[type="range"] {
+	width: 100%;
+	height: 34px;
+	margin: 0;
+	accent-color: var(--teal);
+	background: transparent;
+}
+
+/* ---------- 參數 ---------- */
+.fields {
+	display: grid;
+	grid-template-columns: 1fr;
+	gap: 12px;
+}
+
+.field { display: grid; gap: 5px; }
+
+.field label {
+	font-size: 13px;
+	color: var(--ink-2);
+	letter-spacing: 0.04em;
+}
+
+.field input[type="text"],
+.field input[type="number"] {
+	width: 100%;
+	min-height: 44px;
+	padding: 8px 10px;
+	color: var(--ink);
+	background: #FFFDF6;
+	border: 1px solid var(--line);
+	border-radius: 2px;
+	font: 16px/1.4 var(--font);
+}
+
+.field input:focus-visible {
+	outline: 2px solid var(--teal);
+	outline-offset: 1px;
+}
+
+.field-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+/* ---------- 檢查 ---------- */
+.stats {
+	display: grid;
+	grid-template-columns: auto 1fr;
+	gap: 7px 14px;
+	margin: 0;
+	font-variant-numeric: tabular-nums;
+}
+
+.stats dt { font-size: 14px; color: var(--ink-2); }
+
+.stats dd {
+	margin: 0;
+	font-weight: 600;
+	text-align: right;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.note {
+	margin: 14px 0 0;
+	padding: 10px 12px;
+	border-left: 3px solid var(--line);
+	font-size: 14px;
+	line-height: 1.5;
+	color: var(--ink-2);
+	background: #FBF6E9;
+}
+
+.note[data-tone="ok"] { border-left-color: var(--teal); color: var(--teal-deep); }
+.note[data-tone="warn"] { border-left-color: var(--gold); color: #6B4A0B; }
+.note[data-tone="bad"] { border-left-color: var(--brick); color: var(--brick); }
+.note:empty { display: none; }
+
+/* ---------- 輸出 ---------- */
+.out-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	margin: 0 0 12px;
+}
+
+#out {
+	width: 100%;
+	min-height: 300px;
+	padding: 12px;
+	color: #22301B;
+	background: #FFFDF6;
+	border: 1px solid var(--line);
+	border-radius: 2px;
+	font: 16px/1.5 var(--mono);
+	resize: vertical;
+	tab-size: 4;
+}
+
+.steps {
+	margin: 14px 0 0;
+	padding: 0;
+	list-style: none;
+	font-size: 14px;
+	color: var(--ink-2);
+}
+
+.steps li {
+	display: grid;
+	grid-template-columns: 1.6em 1fr;
+	gap: 8px;
+	padding: 7px 0;
+	border-top: 1px solid #EFE3C8;
+}
+
+.steps li b {
+	color: var(--ink);
+	font-weight: 600;
+}
+
+.num {
+	align-self: center;
+	width: 1.6em;
+	text-align: center;
+	font-variant-numeric: tabular-nums;
+	color: var(--gold);
+	font-weight: 700;
+}
+
+/* ---------- 平板以上：先單欄，寬到能並排才分兩欄 ---------- */
+@media (min-width: 760px) {
+	.bar { padding: 26px 28px 18px; }
+	.facts { grid-template-columns: repeat(4, minmax(0, auto)); }
+	.panel { padding: 24px 26px 28px; }
+	.fields { grid-template-columns: 1fr 1fr; }
+	#out { min-height: 340px; font-size: 15px; }
+}
+
+/* 44px 的格子 12 欄要 550px，兩欄版面要夠寬才放得下 */
+@media (min-width: 1200px) {
+	.bar { padding: 30px 40px 20px; }
+	.board { grid-template-columns: 1fr 1fr; }
+	.panel-out { grid-column: 1 / -1; }
+	:root { --cell: 42px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+	* { transition: none !important; animation: none !important; }
+}
+</style>
+</head>
+<body>
+
+<header class="bar">
+	<div>
+		<h1>關卡產生器 <em>· 四層浮雕</em></h1>
+		<p>在 12×8 的格子裡畫出想要的形狀，往內逐層縮小疊出立體感，最後輸出可直接放進 js/levels 的關卡檔。棋子由遊戲自己在開局時配對落子，所以只要張數合法、成對無落單，這盤一定解得完。</p>
+	</div>
+	<dl class="facts">
+		<dt>格數</dt>
+		<dd id="factCells">—</dd>
+		<dt>對數</dt>
+		<dd id="factPairs">—</dd>
+		<dt>限時</dt>
+		<dd id="factTime">—</dd>
+		<dt>指紋</dt>
+		<dd id="factHash">—</dd>
+	</dl>
+</header>
+
+<main class="board">
+
+	<!-- ============ 字模 ============ -->
+	<section class="panel panel-art">
+		<h2>字模 <span>點一格上色，再點一次擦掉</span></h2>
+
+		<div class="row" style="margin-bottom:10px">
+			<button type="button" id="btnClear">全部擦掉</button>
+			<button type="button" id="btnFill">全部填滿</button>
+			<button type="button" id="btnInvert">反轉</button>
+		</div>
+
+		<div class="row" id="presets" style="margin-bottom:14px"></div>
+
+		<div class="art-scroll">
+			<div class="art-grid" id="artGrid" role="group" aria-label="12 欄 × 8 列的設計格"></div>
+			</div>
+		<p class="hint">按住拖曳可以連續上色。奇數格會自動少一顆，工具會提示你。</p>
+	</section>
+
+	<!-- ============ 預覽 ============ -->
+	<section class="panel panel-view">
+		<h2>浮雕 <span>可拿取的棋子正常亮度，被壓住或夾住的轉暗</span></h2>
+		<div class="view-wrap">
+			<canvas id="view" aria-label="四層浮雕預覽"></canvas>
+		</div>
+		<p class="hint" id="artNote">正在讀取圖集…</p>
+		<div class="sliders">
+			<div class="slider-row">
+				<span>第二層</span>
+				<input type="range" id="s2" min="0.30" max="1.00" step="0.02" aria-label="第二層縮放">
+				<span id="s2v">—</span>
+			</div>
+			<div class="slider-row">
+				<span>第三層</span>
+				<input type="range" id="s3" min="0.30" max="1.00" step="0.02" aria-label="第三層縮放">
+				<span id="s3v">—</span>
+			</div>
+			<div class="slider-row">
+				<span>第四層</span>
+				<input type="range" id="s4" min="0.30" max="1.00" step="0.02" aria-label="第四層縮放">
+				<span id="s4v">—</span>
+			</div>
+		</div>
+	</section>
+
+	<!-- ============ 參數 ============ -->
+	<section class="panel panel-params">
+		<h2>參數</h2>
+		<div class="fields">
+			<div class="field-pair">
+				<div class="field">
+					<label for="fNo">關號</label>
+					<input type="number" id="fNo" min="1" max="999" step="1" value="51">
+				</div>
+				<div class="field">
+					<label for="fSec">每對秒數</label>
+					<input type="number" id="fSec" min="0.9" max="4" step="0.01" value="1.75">
+				</div>
+			</div>
+			<div class="field">
+				<label for="fName">關名</label>
+				<input type="text" id="fName" maxlength="12" value="星芒">
+			</div>
+			<div class="field">
+				<label for="fDesc">造型說明（寫進檔頭，可留空）</label>
+				<input type="text" id="fDesc" maxlength="40" placeholder="例：四角星芒">
+			</div>
+			<div class="field-pair">
+				<div class="field">
+					<label for="fSeed">種子</label>
+					<input type="number" id="fSeed" step="1" value="20261115">
+				</div>
+				<div class="field" style="align-content:end">
+					<button type="button" id="btnReroll">換一組棋子</button>
+				</div>
+			</div>
+		</div>
+		<p class="hint">每對秒數 × 對數 = 限時。同一個種子永遠產生同一份盤面，方便回頭對照。</p>
+
+		<div class="row" id="pool" style="margin-top:16px"></div>
+		<p class="hint">上面是這盤會用到的棋子種類；亮著代表啟用。改動後會重新配一輪牌。</p>
+	</section>
+
+	<!-- ============ 檢查 ============ -->
+	<section class="panel panel-check">
+		<h2>檢查</h2>
+		<dl class="stats">
+			<dt>格數 / 棋子</dt><dd id="ckCount">—</dd>
+			<dt>成對</dt><dd id="ckPairs">—</dd>
+			<dt>每層分佈</dt><dd id="ckLayers">—</dd>
+			<dt>圖案種類</dt><dd id="ckKinds">—</dd>
+			<dt>落單</dt><dd id="ckSingles">—</dd>
+			<dt>貪心殘局</dt><dd id="ckGreedy">—</dd>
+			<dt>3★ 需要</dd><dd id="ckStar3">—</dd>
+		</dl>
+		<p class="note" id="noteWarn"></p>
+		<p class="note" id="noteDupe">撞車檢查：載入既有關卡中…</p>
+	</section>
+
+	<!-- ============ 輸出 ============ -->
+	<section class="panel panel-out">
+		<h2>關卡檔 <span>複製或下載後放進 static/js/levels</span></h2>
+		<div class="out-actions">
+			<button type="button" class="primary" id="btnCopy">複製內容</button>
+			<button type="button" id="btnDownload">下載 <span id="dlName">L_51.js</span></button>
+		</div>
+		<p class="hint" id="actionNote" aria-live="polite"></p>
+		<textarea id="out" readonly spellcheck="false" aria-label="產出的關卡檔內容"></textarea>
+		<ul class="steps">
+			<li><b class="num">1</b><span>存成 <code id="stepFile">js/levels/L_51.js</code>，工具已加好 @author、@Date、@Correction 檔頭。</span></li>
+			<li><b class="num">2</b><span>在 <code>js/levels.js</code> 把對應的 <code id="stepIndex">Levels.LEVEL_51</code> 指向它，並把 @Correction 加一。</span></li>
+			<li><b class="num">3</b><span>在 <code>index.html</code> 補一行 script 引入，順序要排在 levels.js 之前，@Correction 也加一。</span></li>
+		</ul>
+	</section>
+
+</main>
+
+<script src="../../js/images.js"></script>
+<script src="level-gen.js"></script>
+<script>
+(function () {
+	'use strict';
+
+	var LG = window.LevelGen;
+	if (!LG) {
+		document.body.innerHTML = '<p style="padding:40px;font:16px sans-serif">找不到 level-gen.js，請確認它和這個頁面放在同一個資料夾。</p>';
+		return;
+	}
+
+	// 棋子用色：只借用顏色做辨識，真正的圖由遊戲載入
+	var TINT = {
+		fruit: { line: '#A8492A', mark: '綠' },
+		hands: { line: '#1B5B54', mark: '藍' },
+		monsters: { line: '#4A4E7C', mark: '金' },
+		snakes: { line: '#4C7A3A', mark: '紋' },
+		eyes: { line: '#2F5C86', mark: '眼' },
+		plants: { line: '#6E7A2C', mark: '貓' },
+		bugs: { line: '#8A6420', mark: '線' }
+	};
+
+	var NAME_LABEL = {
+		fruit: '綠框・人物',
+		hands: '藍框・法師',
+		monsters: '金框・雙人',
+		snakes: '藍紋木牌',
+		eyes: '金眼木牌',
+		plants: '黑貓木牌',
+		bugs: '藍眼線稿'
+	};
+
+	var CHIP_W = 53;
+	var CHIP_H = 74;
+	var LAYER_DX = -5;
+	var LAYER_DY = -7;
+
+	var st = {
+		art: LG.PRESETS[0].art.slice(),
+		scales: LG.PRESETS[0].scales.slice(),
+		levelNo: 51,
+		name: LG.PRESETS[0].label,
+		desc: '',
+		secPerPair: 1.75,
+		pool: LG.DEFAULT_POOL.map(function (p) {
+			return [p[0], p[1]];
+		}),
+		seed: 20261115,
+		built: null
+	};
+
+	var el = function (id) {
+		return document.getElementById(id);
+	};
+
+	// ------------------------------------------------------------ 字模編輯
+	var grid = el('artGrid');
+
+	function buildGrid() {
+		var html = [];
+		for (var row = 0; row < LG.ART_ROWS; row++) {
+			for (var col = 0; col < LG.ART_COLS; col++) {
+				html.push('<button type="button" class="cell" data-row="' + row + '" data-col="' + col +
+					'" aria-label="第 ' + (row + 1) + ' 列第 ' + (col + 1) + ' 欄"></button>');
+			}
+		}
+		grid.innerHTML = html.join('');
+		paintGrid();
+	}
+
+	function cellOn(row, col) {
+		return st.art[row].charAt(col) === '#';
+	}
+
+	function setChar(str, col, ch) {
+		return str.substring(0, col) + ch + str.substring(col + 1);
+	}
+
+	function paintGrid() {
+		var cells = grid.children;
+		for (var i = 0; i < cells.length; i++) {
+			var c = cells[i];
+			var row = Number(c.getAttribute('data-row'));
+			var col = Number(c.getAttribute('data-col'));
+			var on = cellOn(row, col);
+			c.className = on ? 'cell on' : 'cell';
+			c.setAttribute('aria-pressed', on ? 'true' : 'false');
+		}
+	}
+
+	var painting = false;
+	var paintOn = true;
+
+	grid.addEventListener('pointerdown', function (e) {
+		var cell = e.target.closest ? e.target.closest('.cell') : null;
+		if (!cell) {
+			return;
+		}
+		painting = true;
+		var row = Number(cell.getAttribute('data-row'));
+		var col = Number(cell.getAttribute('data-col'));
+		paintOn = !cellOn(row, col);
+		apply(row, col, paintOn);
+		cell.setPointerCapture && cell.setPointerCapture(e.pointerId);
+		e.preventDefault();
+	});
+
+	// 拖曳：滑鼠與觸控共用，用座標反查格子（觸控時 pointerover 不會逐格觸發）
+	grid.addEventListener('pointermove', function (e) {
+		if (!painting) {
+			return;
+		}
+		var hit = document.elementFromPoint(e.clientX, e.clientY);
+		var cell = hit && hit.closest ? hit.closest('.cell') : null;
+		if (!cell) {
+			return;
+		}
+		apply(Number(cell.getAttribute('data-row')), Number(cell.getAttribute('data-col')), paintOn);
+	});
+
+	window.addEventListener('pointerup', function () {
+		painting = false;
+	});
+
+	window.addEventListener('pointercancel', function () {
+		painting = false;
+	});
+
+	function apply(row, col, on) {
+		if (cellOn(row, col) === on) {
+			return;
+		}
+		st.art[row] = setChar(st.art[row], col, on ? '#' : '.');
+		var idx = row * LG.ART_COLS + col;
+		var c = grid.children[idx];
+		c.className = on ? 'cell on' : 'cell';
+		c.setAttribute('aria-pressed', on ? 'true' : 'false');
+		run();
+	}
+
+	// 鍵盤：把格子當按鈕即可，click 事件補一次切換
+	grid.addEventListener('click', function (e) {
+		var cell = e.target.closest ? e.target.closest('.cell') : null;
+		if (!cell) {
+			return;
+		}
+		// 拖曳時 pointerdown 已經處理過，這裡只接單獨點擊（pointerdown 未觸發的鍵盤操作）
+		if (e.detail === 0) {
+			var row = Number(cell.getAttribute('data-row'));
+			var col = Number(cell.getAttribute('data-col'));
+			apply(row, col, !cellOn(row, col));
+		}
+	});
+
+	el('btnClear').addEventListener('click', function () {
+		st.art = ['............', '............', '............', '............', '............', '............', '............', '............'];
+		paintGrid();
+		run();
+	});
+
+	el('btnFill').addEventListener('click', function () {
+		st.art = ['############', '############', '############', '############', '############', '############', '############', '############'];
+		paintGrid();
+		run();
+	});
+
+	el('btnInvert').addEventListener('click', function () {
+		for (var i = 0; i < st.art.length; i++) {
+			var s = '';
+			for (var j = 0; j < LG.ART_COLS; j++) {
+				s += st.art[i].charAt(j) === '#' ? '.' : '#';
+			}
+			st.art[i] = s;
+		}
+		paintGrid();
+		run();
+	});
+
+	// ------------------------------------------------------------ 造型預設
+	var presetBox = el('presets');
+
+	LG.PRESETS.forEach(function (p, i) {
+		var b = document.createElement('button');
+		b.type = 'button';
+		b.textContent = p.label;
+		b.setAttribute('data-key', p.key);
+		if (i === 0) {
+			b.className = 'is-on';
+		}
+		b.addEventListener('click', function () {
+			var all = presetBox.children;
+			for (var k = 0; k < all.length; k++) {
+				all[k].className = '';
+			}
+			b.className = 'is-on';
+			st.art = p.art.slice();
+			st.scales = p.scales.slice();
+			// 只有名字還是某個預設名時才跟著換，避免蓋掉自己取的名字
+			if (!st.name || isStockName(st.name)) {
+				st.name = p.label;
+			}
+			el('fName').value = st.name;
+			el('s2').value = st.scales[1];
+			el('s3').value = st.scales[2];
+			el('s4').value = st.scales[3];
+			paintGrid();
+			syncScaleLabels();
+			run();
+		});
+		presetBox.appendChild(b);
+	});
+
+	// ------------------------------------------------------------ 縮放滑桿
+	['s2', 's3', 's4'].forEach(function (id, i) {
+		var input = el(id);
+		input.value = st.scales[i + 1];
+		input.addEventListener('input', function () {
+			st.scales[i + 1] = Number(input.value);
+			syncScaleLabels();
+			run();
+		});
+	});
+
+	function syncScaleLabels() {
+		el('s2').value = st.scales[1];
+		el('s3').value = st.scales[2];
+		el('s4').value = st.scales[3];
+		el('s2v').textContent = Math.round(st.scales[1] * 100) + '%';
+		el('s3v').textContent = Math.round(st.scales[2] * 100) + '%';
+		el('s4v').textContent = Math.round(st.scales[3] * 100) + '%';
+	}
+
+	// ------------------------------------------------------------ 棋子牌組
+	function buildPool() {
+		var box = el('pool');
+		var html = [];
+		var order = ['fruit', 'hands', 'monsters', 'snakes', 'eyes', 'plants', 'bugs'];
+		order.forEach(function (name) {
+			var range = LG.POOL_RANGES[name];
+			html.push('<div class="row" style="align-items:center;gap:6px;width:100%">');
+			html.push('<span style="min-width:4.2em;font-size:14px;color:var(--ink-2)">' + NAME_LABEL[name] +
+				(LG.UNIVERSAL.indexOf(name) >= 0 ? '（通用）' : '') + '</span>');
+			for (var id = range[0]; id <= range[1]; id++) {
+				var on = hasChip(name, id);
+				html.push('<button type="button" class="pool-btn' + (on ? ' is-on' : '') + '" data-name="' + name +
+					'" data-id="' + id + '" aria-label="' + NAME_LABEL[name] + ' ' + id + '">' +
+					'<span class="thumb"></span><span class="pid">' + id + '</span></button>');
+			}
+			html.push('</div>');
+		});
+		box.innerHTML = html.join('');
+	}
+
+	function hasChip(name, id) {
+		for (var i = 0; i < st.pool.length; i++) {
+			if (st.pool[i][0] === name && st.pool[i][1] === id) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	function isStockName(name) {
+		for (var i = 0; i < LG.PRESETS.length; i++) {
+			if (LG.PRESETS[i].label === name) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	el('pool').addEventListener('click', function (e) {
+		var b = e.target.closest ? e.target.closest('.pool-btn') : null;
+		if (!b) {
+			return;
+		}
+		var name = b.getAttribute('data-name');
+		var id = Number(b.getAttribute('data-id'));
+		if (hasChip(name, id)) {
+			st.pool = st.pool.filter(function (p) {
+				return !(p[0] === name && p[1] === id);
+			});
+			b.className = 'pool-btn';
+		} else {
+			st.pool.push([name, id]);
+			b.className = 'pool-btn is-on';
+		}
+		run();
+	});
+
+	// ------------------------------------------------------------ 參數
+	el('fNo').addEventListener('input', function () {
+		var v = Number(this.value);
+		st.levelNo = v > 0 ? Math.floor(v) : 51;
+		run();
+	});
+
+	el('fName').addEventListener('input', function () {
+		st.name = this.value;
+		run();
+	});
+
+	el('fDesc').addEventListener('input', function () {
+		st.desc = this.value;
+		run();
+	});
+
+	el('fSec').addEventListener('input', function () {
+		var v = Number(this.value);
+		st.secPerPair = v >= 0.9 ? v : 1.75;
+		run();
+	});
+
+	el('fSeed').addEventListener('input', function () {
+		var v = Number(this.value);
+		st.seed = isFinite(v) ? Math.floor(v) : 20261115;
+		run();
+	});
+
+	el('btnReroll').addEventListener('click', function () {
+		st.seed = (st.seed + 77003) % 2147483647;
+		el('fSeed').value = st.seed;
+		run();
+	});
+
+	// ------------------------------------------------------------ 產生
+	var runTimer = null;
+
+	function run() {
+		if (runTimer) {
+			clearTimeout(runTimer);
+			}
+		runTimer = setTimeout(doRun, 70);
+	}
+
+	function doRun() {
+		runTimer = null;
+		var res;
+		try {
+			res = LG.generate({
+				art: st.art,
+				scales: st.scales,
+				levelNo: st.levelNo,
+				name: st.name || '未命名',
+				desc: st.desc,
+				secPerPair: st.secPerPair,
+				pool: st.pool.length ? st.pool : LG.DEFAULT_POOL,
+				seed: st.seed
+			});
+		} catch (err) {
+			el('factCells').textContent = '—';
+			el('factPairs').textContent = '—';
+			el('noteWarn').setAttribute('data-tone', 'bad');
+			el('noteWarn').textContent = err.message;
+			el('out').value = '';
+			return;
+		}
+		st.built = res;
+		renderFacts(res);
+		renderView(res);
+		renderStats(res);
+		renderOut(res);
+		checkDupe(res);
+	}
+
+	function renderFacts(res) {
+		el('factCells').textContent = res.info.chips;
+		el('factPairs').textContent = res.info.pairs;
+		el('factTime').textContent = res.time + '″';
+		el('factHash').textContent = res.hash;
+		el('s2v').textContent = Math.round(st.scales[1] * 100) + '%';
+		el('s3v').textContent = Math.round(st.scales[2] * 100) + '%';
+		el('s4v').textContent = Math.round(st.scales[3] * 100) + '%';
+	}
+
+	// ------------------------------------------------------------ 圖集
+	// 直接吃專案的 images.js 與 assets/art/chips.png，所以這裡顯示的就是遊戲裡那張圖
+	var art = {
+		sheet: null,
+		frames: null,
+		names: null,
+		file: '',
+		ready: false,
+		failed: false
+	};
+
+	function initArt() {
+		var note = el('artNote');
+		if (!window.athlases) {
+			art.failed = true;
+			note.textContent = '讀不到 images.js，暫且用文字代表棋子。';
+			return;
+		}
+
+		var atlas = null;
+		for (var i = 0; i < window.athlases.length; i++) {
+			var a = window.athlases[i];
+			if (a && a.animations && a.animations['fruit/0']) {
+				atlas = a;
+				break;
+			}
+		}
+		if (!atlas || !atlas.images || !atlas.images[0]) {
+			art.failed = true;
+			note.textContent = 'images.js 裡找不到棋子圖集，暫且用文字代表。';
+			return;
+		}
+
+		art.frames = atlas.frames;
+		art.names = atlas.animations;
+		art.file = '../../assets/art/' + atlas.images[0] + '.png';
+
+		var img = new Image();
+		img.onload = function () {
+			art.sheet = img;
+			art.ready = true;
+			note.textContent = '圖樣取自 ' + art.file.replace('../../', '') + '，就是遊戲實際使用的那張。';
+			applyThumbs();
+			if (st.built) {
+				renderView(st.built);
+			}
+		};
+		img.onerror = function () {
+			art.failed = true;
+			note.textContent = '讀不到 ' + art.file + '，暫且用文字代表（多半是直接用 file:// 開檔被擋）。';
+			applyThumbs();
+		};
+		img.src = art.file;
+	}
+
+	// 名稱 + id → 圖集格；找不到就退回同名的 0 號，再沒有就回 null
+	function frameOf(name, id) {
+		if (!art.names) {
+			return null;
+		}
+		var idx = art.names[name + '/' + id];
+		if (!idx || !idx.length) {
+			idx = art.names[name + '/0'];
+		}
+		if (!idx || !idx.length) {
+			return null;
+		}
+		return art.frames[idx[0]] || null;
+	}
+
+	// 牌組按鈕用圖集的局部當背景，不必為每張圖建 element
+	function applyThumbs() {
+		var btns = el('pool').querySelectorAll('.pool-btn');
+		for (var i = 0; i < btns.length; i++) {
+			var b = btns[i];
+			var thumb = b.querySelector('.thumb');
+			if (!thumb) {
+				continue;
+			}
+			var rect = art.ready ? frameOf(b.getAttribute('data-name'), Number(b.getAttribute('data-id'))) : null;
+			if (!rect) {
+				thumb.style.backgroundImage = 'none';
+				continue;
+			}
+			var k = 42 / rect[3]; // 以高度 42px 對齊
+			thumb.style.backgroundImage = 'url("' + art.file + '")';
+			thumb.style.backgroundSize = (art.sheet.width * k) + 'px ' + (art.sheet.height * k) + 'px';
+			thumb.style.backgroundPosition = (-rect[0] * k) + 'px ' + (-rect[1] * k) + 'px';
+		}
+	}
+
+	// ------------------------------------------------------------ 畫浮雕
+	var canvas = el('view');
+	var ctx = canvas.getContext('2d');
+
+	function roundRect(c, x, y, w, h, r) {
+		c.beginPath();
+		c.moveTo(x + r, y);
+		c.arcTo(x + w, y, x + w, y + h, r);
+		c.arcTo(x + w, y + h, x, y + h, r);
+		c.arcTo(x, y + h, x, y, r);
+		c.arcTo(x, y, x + w, y, r);
+		c.closePath();
+	}
+
+	function renderView(res) {
+		var board = res.board;
+		var cells = res.cells;
+		if (!cells.length) {
+			canvas.width = 1;
+			canvas.height = 1;
+			return;
+		}
+
+		var minX = Infinity;
+		var maxX = -Infinity;
+		var minY = Infinity;
+		var maxY = -Infinity;
+
+		cells.forEach(function (c) {
+			var px = CHIP_W * c.x / 2 + c.l * LAYER_DX;
+			var py = CHIP_H * c.y / 2 + c.l * LAYER_DY;
+			minX = Math.min(minX, px);
+			maxX = Math.max(maxX, px + CHIP_W);
+			minY = Math.min(minY, py);
+			maxY = Math.max(maxY, py + CHIP_H);
+		});
+
+		var pad = 10;
+		var boxW = maxX - minX;
+		var boxH = maxY - minY;
+		var host = canvas.parentElement.clientWidth || 520;
+		var s = Math.min((host - pad * 2) / boxW, 1.0);
+		var cssW = Math.max(120, Math.min(host, boxW * s + pad * 2));
+		var cssH = boxH * s + pad * 2;
+		var dpr = window.devicePixelRatio || 1;
+
+		canvas.style.height = cssH + 'px';
+		canvas.width = Math.round(cssW * dpr);
+		canvas.height = Math.round(cssH * dpr);
+
+		ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+		ctx.clearRect(0, 0, cssW, cssH);
+
+		var offX = (cssW - boxW * s) / 2 - minX * s;
+		var offY = (cssH - boxH * s) / 2 - minY * s;
+
+		// 由後往前畫：層號小的先畫，同層由遠而近
+		var list = cells.slice().sort(function (a, b) {
+			if (a.l !== b.l) {
+				return a.l - b.l;
+			}
+			if (a.y !== b.y) {
+				return a.y - b.y;
+			}
+			return b.x - a.x;
+		});
+
+		// 每格拿到的棋子（以輸出順序對應）
+		var diag = LG.diagOrder(board);
+		var chipAt = {};
+		diag.forEach(function (c, i) {
+			chipAt[c.l + ':' + c.x + ':' + c.y] = res.chips[i];
+		});
+
+		list.forEach(function (c) {
+			var px = CHIP_W * c.x / 2 + c.l * LAYER_DX;
+			var py = CHIP_H * c.y / 2 + c.l * LAYER_DY;
+			var x = px * s + offX;
+			var y = py * s + offY;
+			var w = CHIP_W * s;
+			var h = CHIP_H * s;
+			var chip = chipAt[c.l + ':' + c.x + ':' + c.y] || { name: 'fruit', id: 0 };
+			var tint = TINT[chip.name] || TINT.fruit;
+			var free = LG.accessible(board, c.l, c.x, c.y);
+
+			ctx.globalAlpha = free ? 1 : 0.5;
+
+			// 影子
+			ctx.fillStyle = 'rgba(36, 29, 20, 0.16)';
+			roundRect(ctx, x + 2, y + 3, w, h, Math.min(w, h) * 0.22);
+			ctx.fill();
+
+			// 牌面：有圖就貼真的棋子圖，沒有才退回文字牌
+			var rect = art.ready ? frameOf(chip.name, chip.id) : null;
+
+			if (rect) {
+				ctx.drawImage(art.sheet, rect[0], rect[1], rect[2], rect[3], x, y, w, h);
+			} else {
+				ctx.fillStyle = '#FCF6E7';
+				roundRect(ctx, x, y, w, h, Math.min(w, h) * 0.22);
+				ctx.fill();
+
+				ctx.strokeStyle = tint.line;
+				ctx.lineWidth = Math.max(1, 1.4 * s);
+				roundRect(ctx, x + 0.5, y + 0.5, w - 1, h - 1, Math.min(w, h) * 0.22);
+				ctx.stroke();
+
+				// 內框，做出棋子的厚度感
+				ctx.strokeStyle = 'rgba(36, 29, 20, 0.14)';
+				ctx.lineWidth = Math.max(0.6, 0.8 * s);
+				roundRect(ctx, x + 3.5 * s, y + 3.5 * s, w - 7 * s, h - 7 * s, Math.min(w, h) * 0.18);
+				ctx.stroke();
+
+				// 記號：通用型寫名字首字，其餘寫 id
+				var label = LG.UNIVERSAL.indexOf(chip.name) >= 0 ? tint.mark : String(chip.id);
+				var fs = Math.max(8, h * 0.3);
+				ctx.font = '700 ' + fs + 'px "Microsoft JhengHei", sans-serif';
+				ctx.fillStyle = tint.line;
+				ctx.textAlign = 'center';
+				ctx.textBaseline = 'middle';
+				ctx.fillText(label, x + w / 2, y + h / 2);
+			}
+
+			ctx.globalAlpha = 1;
+		});
+	}
+
+	// ------------------------------------------------------------ 檢查表
+	function renderStats(res) {
+		var info = res.info;
+		el('ckCount').textContent = info.cells + ' / ' + info.chips;
+		el('ckPairs').textContent = info.pairs + ' 對';
+		el('ckLayers').textContent = info.perLayer.join(' / ');
+		el('ckKinds').textContent = info.kinds + ' 種';
+		el('ckSingles').textContent = info.singles.length ? info.singles.join('、') : '無';
+		el('ckGreedy').textContent = res.greedy.left === 0 ? '清得完' : '剩 ' + res.greedy.left + ' 顆';
+
+		var t3 = res.time / 3 / info.pairs;
+		el('ckStar3').textContent = t3.toFixed(2) + ' 秒/對';
+
+		var warn = el('noteWarn');
+		var msgs = [];
+		var tone = 'ok';
+
+		if (!info.ok) {
+			tone = 'bad';
+			if (info.empty !== 0) {
+				msgs.push('格數 ' + info.cells + ' 與棋子 ' + info.chips + ' 不平，遊戲會出現空位。');
+			}
+			if (info.singles.length) {
+				msgs.push('這些組合張數是單數，會落單：' + info.singles.join('、'));
+			}
+		}
+
+		if (res.dropped) {
+			tone = tone === 'bad' ? 'bad' : 'warn';
+			msgs.push('格數為奇數，已自動移除最後一格，可以用縮放或字模微調把格數調成偶數。');
+		}
+
+		if (t3 < 1.0) {
+			tone = tone === 'bad' ? 'bad' : 'warn';
+			msgs.push('3★ 只要 ' + t3.toFixed(2) + ' 秒配一對，比正常手速還快；想讓 3★ 拿得到，每對秒數建議 1.9 以上，或改星星規則。');
+		}
+
+		if (!msgs.length) {
+			msgs.push('張數成對、格數相等，這盤照遊戲的配對規則一定解得完。');
+		}
+
+		warn.setAttribute('data-tone', tone);
+		warn.textContent = msgs.join(' ');
+	}
+
+	// ------------------------------------------------------------ 輸出
+	function renderOut(res) {
+		el('out').value = res.text;
+		el('dlName').textContent = 'L_' + st.levelNo + '.js';
+		el('stepFile').textContent = 'js/levels/L_' + st.levelNo + '.js';
+		el('stepIndex').textContent = 'Levels.LEVEL_' + st.levelNo;
+	}
+
+	el('btnCopy').addEventListener('click', function () {
+		var text = el('out').value;
+		if (!text) {
+			return;
+		}
+		if (navigator.clipboard && navigator.clipboard.writeText) {
+			navigator.clipboard.writeText(text).then(function () {
+				say('已複製整份關卡檔，貼到 js/levels/L_' + st.levelNo + '.js 即可。');
+			}, function () {
+				selectOut();
+			});
+		} else {
+			selectOut();
+		}
+	});
+
+	function selectOut() {
+		var t = el('out');
+		t.focus();
+		t.select();
+		try {
+			document.execCommand('copy');
+			say('已複製整份關卡檔。');
+		} catch (e) {
+			say('瀏覽器不讓自動複製，請手動全選。');
+		}
+	}
+
+	el('btnDownload').addEventListener('click', function () {
+		var text = el('out').value;
+		if (!text) {
+			return;
+		}
+		var blob = new Blob([text], { type: 'text/javascript;charset=utf-8' });
+		var a = document.createElement('a');
+		a.href = URL.createObjectURL(blob);
+		a.download = 'L_' + st.levelNo + '.js';
+		document.body.appendChild(a);
+		a.click();
+		document.body.removeChild(a);
+		setTimeout(function () {
+			URL.revokeObjectURL(a.href);
+		}, 4000);
+		say('已下載 L_' + st.levelNo + '.js，放進 static/js/levels。');
+	});
+
+	function say(text) {
+		var note = el('actionNote');
+		note.textContent = text;
+		clearTimeout(note._t);
+		note._t = setTimeout(function () {
+			note.textContent = '';
+		}, 2400);
+	}
+
+	// ------------------------------------------------------------ 撞車檢查
+	// 直接讀同專案的 50 個關卡檔，比對地形指紋；讀不到就略過，不影響產生功能
+	var levelHashes = null;
+	var levelLoadNote = '';
+	var levelsLoading = false;
+	var levelsFailed = false;
+	var levelsQueue = [];
+
+	function flushLevels() {
+		var q = levelsQueue;
+		levelsQueue = [];
+		for (var i = 0; i < q.length; i++) {
+			q[i]();
+		}
+	}
+
+	function loadLevels(done) {
+		if (levelHashes || levelsFailed) {
+			done();
+			return;
+		}
+		levelsQueue.push(done);
+		if (levelsLoading) {
+			return;
+		}
+		levelsLoading = true;
+
+		var bases = ['../../js/levels/', '/js/levels/'];
+		var base = null;
+
+		function tryBase(i) {
+			if (i >= bases.length) {
+				levelsFailed = true;
+				levelLoadNote = '讀不到既有關卡檔，撞車檢查略過（用 file:// 直接開檔時，瀏覽器可能不讓子目錄的腳本載入）。';
+				flushLevels();
+				return;
+			}
+			var probe = document.createElement('script');
+			probe.src = bases[i] + 'L_1.js';
+			probe.onload = function () {
+				base = bases[i];
+				loadAll();
+			};
+			probe.onerror = function () {
+				probe.remove();
+				tryBase(i + 1);
+			};
+			document.head.appendChild(probe);
+		}
+
+		function loadAll() {
+			var pending = 0;
+			var n;
+
+			for (n = 2; n <= 50; n++) {
+				pending++;
+				addScript(base + 'L_' + n + '.js');
+			}
+
+			if (pending === 0) {
+				collect();
+			}
+
+			function addScript(src) {
+				var s = document.createElement('script');
+				s.src = src;
+				s.onload = tick;
+				s.onerror = tick;
+				document.head.appendChild(s);
+			}
+
+			function tick() {
+				pending--;
+				if (pending <= 0) {
+					collect();
+				}
+			}
+		}
+
+		function collect() {
+			levelHashes = {};
+			var found = 0;
+			for (var n = 1; n <= 50; n++) {
+				var obj = window['L_' + n];
+				if (obj && obj.level_str && obj.level_str.field) {
+					levelHashes[LG.fingerprint(obj.level_str.field)] = n;
+					found++;
+				}
+			}
+			if (found === 0) {
+				levelsFailed = true;
+				levelLoadNote = '讀到檔案但裡面沒有關卡資料，撞車檢查略過。';
+			} else {
+				levelLoadNote = '已比對 ' + found + ' 個既有關卡';
+			}
+			flushLevels();
+		}
+
+		tryBase(0);
+	}
+
+	function checkDupe(res) {
+		var note = el('noteDupe');
+		loadLevels(function () {
+			if (!levelHashes) {
+				note.setAttribute('data-tone', '');
+				note.textContent = levelLoadNote;
+				return;
+			}
+			var hit = levelHashes[res.hash];
+			if (hit) {
+				note.setAttribute('data-tone', 'bad');
+				note.textContent = '地形與 L_' + hit + ' 完全相同，換個造型或改縮放再試。';
+			} else {
+				note.setAttribute('data-tone', 'ok');
+				note.textContent = levelLoadNote + '，沒有相同地形。';
+			}
+		});
+	}
+
+	// ------------------------------------------------------------ 起跑
+	buildGrid();
+	buildPool();
+	initArt();
+	syncScaleLabels();
+	el('fName').value = st.name;
+	run();
+
+	window.addEventListener('resize', function () {
+		if (st.built) {
+			renderView(st.built);
+		}
+	});
+
+	document.addEventListener('keydown', function (e) {
+		if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+			e.preventDefault();
+			el('btnDownload').click();
+		}
+	});
+})();
+</script>
+
+</body>
+</html>
