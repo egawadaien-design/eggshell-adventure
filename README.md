@@ -1,4 +1,9 @@
-﻿# EggshellCatWeb — 蛋殼冒險
+<img src="https://raw.githubusercontent.com/egawadaien-design/eggshell-cat-apng-tool/main/icon/128x128.png" alt="蛋殼喵" height="80" align="left" style="margin-right:12px">
+<img src="https://raw.githubusercontent.com/egawadaien-design/eggshell-cat-apng-tool/main/icon/logo-txt-w.png" alt="蛋殼喵 APNG 工具" height="80" align="left">
+
+<br clear="left">
+
+ # EggshellCatWeb — 蛋殼冒險
 
 > EaselJS 2D 網頁關卡遊戲，含帳號註冊／登入、存檔同步與排行榜；資料層走 Supabase。
 
