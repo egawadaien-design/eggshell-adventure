@@ -3,7 +3,7 @@
 
 <br clear="left">
 
- # EggshellCatWeb — 蛋殼冒險
+# EggshellCatWeb — 蛋殼冒險
 
 > EaselJS 2D 網頁關卡遊戲，含帳號註冊／登入、存檔同步與排行榜；資料層走 Supabase。
 
@@ -47,7 +47,7 @@ static/
 ├── vercel.json             # /api/* 路由 rewrite、outputDirectory
 ├── package.json            # ESM 宣告、Node ≥18、無第三方依賴
 ├── .vercelignore           # 部署排除清單
-└── tools/                   # 本機預覽／製作工具頁（正式站排除）
+└── tools/                   # 本機預覽／製作工具頁
 ```
 
 ## 三、技術棧
@@ -118,3 +118,25 @@ static/
 - `api/README.md`：函數清單、契約、共用模組與部署細節。
 - `docs/Supabase 登入設置說明.md`：建表、金鑰對照、錯誤代碼、上 GitHub 前檢查。
 - `docs/users-table.sql`：`users` 表 DDL、觸發器與索引。
+
+## 十、測試網點與鏈接
+
+ - 遊戲測試站點：[https://eggshell-adventure.vercel.app/](https://eggshell-adventure.vercel.app/)
+ - NPC圖片查看工具：[https://egawadaien-design.github.io/eggshell-adventure/tools/npc-preview/npc-preview.html](https://egawadaien-design.github.io/eggshell-adventure/tools/npc-preview/npc-preview.html)
+ - 地圖障礙點設置工具：[https://egawadaien-design.github.io/eggshell-adventure/tools/map-maker/map-maker.html](https://egawadaien-design.github.io/eggshell-adventure/tools/map-maker/map-maker.html)
+ - 關卡生成工具：[https://egawadaien-design.github.io/eggshell-adventure/tools/level-maker/level-maker.html](https://egawadaien-design.github.io/eggshell-adventure/tools/level-maker/level-maker.html)
+ - MAIN視頻檢視工具：[https://egawadaien-design.github.io/eggshell-adventure/tools/video-preview/video-preview.html](https://egawadaien-design.github.io/eggshell-adventure/tools/video-preview/video-preview.html)
+ 
+ - Supabase 站點
+ [https://supabase.com/](https://supabase.com/)
+ 
+ - Vercel 站點
+ [https://vercel.com/](https://vercel.com/)
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
