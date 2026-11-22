@@ -2,7 +2,7 @@
  * 蛋壳大冒險 - 遊戲主邏輯（Preload / Play / Map 各狀態）
  * @author DaiEn
  * @Date 2026-11-21
- * @Correction 105
+ * @Correction 107
  */
 function init() {
 
@@ -1347,7 +1347,6 @@ var Chip = (function(_super) {
 	return Chip;
 })(DNGameObject);
 
-/// <reference path="references.ts" />
 var ChipDef = (function() {
 	function ChipDef() {}
 	return ChipDef;
@@ -1986,13 +1985,14 @@ var MainMenuState = (function(_super) {
 	return MainMenuState;
 })(DNGameState);
 
-// FIXME 
+// 開源訊息
 var CreditsState = (function(_super) {
 	__extends(CreditsState, _super);
-	// 这里要放什么讯息呢？改成開源訊息？
+	// 
 	function CreditsState() {
 		_super.call(this);
 		this.hiddingNow = false;
+		var _this = this;
 
 		//  shading
 		this.shader = new createjs.Shape();
@@ -2012,10 +2012,6 @@ var CreditsState = (function(_super) {
 			alpha: 1.0
 		}, 500, createjs.Ease.linear);
 
-		var texts = [ //info
-			"開源訊息","開源訊息","開源訊息"
-		];
-
 		var strings = DNStringManager.getInstance();
 		var padY = (Constants.SCREEN_HEIGHT - Constants.ASSETS_HEIGHT) / 2;
 		this.padY = padY;
@@ -2024,20 +2020,101 @@ var CreditsState = (function(_super) {
 		this.container.addChild(pic);
 		pic.x = Constants.ASSETS_WIDTH / 2;
 		pic.y = (Constants.ASSETS_HEIGHT / 2) + padY;
-		
-		for (var i = 0; i < texts.length; i++) {
-			var line = new createjs.Text(texts[i], "bold 16px Verdana", "#222222");
-			line.textAlign = "center";
-			this.container.addChild(line);
 
-			line.x = Constants.ASSETS_WIDTH / 2;
-			line.y = 175 + (i * 40) + (Constants.SCREEN_HEIGHT - Constants.ASSETS_HEIGHT) / 2; // (700-700) /2
-			//line.y = i * 40 + (Constants.SCREEN_HEIGHT - Constants.ASSETS_HEIGHT) / 2;
+		// 標題
+		var title = new createjs.Text(strings.getString(Strings.INFO_TITLE), "bold 22px Verdana", "#222222");
+		title.textAlign = "center";
+		title.textBaseline = "middle";
+		title.x = Constants.ASSETS_WIDTH / 2;
+		title.y = 215 + padY;
+		this.container.addChild(title);
+
+		// 簡介
+		var intro = new createjs.Text(strings.getString(Strings.INFO_INTRO), "13px Verdana", "#5a4a2a");
+		intro.textAlign = "center";
+		intro.textBaseline = "middle";
+		intro.x = Constants.ASSETS_WIDTH / 2;
+		intro.y = 255 + padY;
+		this.container.addChild(intro);
+
+		// 平台連結列：圖示＋文字整列可點，點擊開新視窗；其餘區域點擊關閉面板
+		var links = [
+			{ icon: Images.GITHUB_1, label: Strings.INFO_REPO, url: "https://github.com/egawadaien-design/eggshell-adventure" },
+			{ icon: Images.GITHUB_1, label: Strings.INFO_GITHUB, url: "https://github.com" },
+			{ icon: Images.VERCEL_1, label: Strings.INFO_VERCEL, url: "https://vercel.com" },
+			{ icon: Images.SUPABASE_1, label: Strings.INFO_SUPABASE, url: "https://supabase.com" },
+			{ icon: Images.LINK_1, iconUrl: "https://egawadaien-design.github.io/eggshell-cat-apng-tool/icon/32x32.png", label: Strings.INFO_APNG, url: "https://cat.apng.top/" }
+		];
+		var rowStartY = 305;
+		var rowGap = 52;
+
+		// 外部圖示不在本地圖集：先掛本地佔位，圖片載入完成後換成對外 Bitmap 並置中
+		var applyExternalIcon = function(button, url) {
+			var img = new Image();
+			img.crossOrigin = "anonymous";
+			img.onload = function() {
+				var bmp = new createjs.Bitmap(img);
+				var bounds = bmp.getBounds();
+				if (bounds) {
+					bmp.x = -bounds.width / 2;
+					bmp.y = -bounds.height / 2;
+				}
+				if (button.picture && button.picture.parent) {
+					button.picture.parent.removeChild(button.picture);
+				}
+				button.picture = bmp;
+				button.addChild(bmp);
+			};
+			img.src = url;
+		};
+
+		for (var li = 0; li < links.length; li++) {
+			(function(link) {
+				var row = new DNFlatButton(link.icon, function() {
+					DNGameConfig.openUrl(link.url);
+				});
+				if (link.iconUrl) {
+					applyExternalIcon(row, link.iconUrl);
+				}
+
+				var label = new createjs.Text(strings.getString(link.label), "bold 16px Verdana", "#333333");
+				label.textAlign = "left";
+				label.textBaseline = "middle";
+				label.x = 34;
+				row.addChild(label);
+
+				row.x = 240;
+				row.y = rowStartY + li * rowGap + padY;
+
+				// 整列命中（圖示＋文字），覆寫預設只認圖示邊界的判定
+				row.hitTestSmart = function(x, y) {
+					if (!this.enabled || !this.parent || !this.visible) {
+						return false;
+					}
+					var pos = this.localToGlobal(0, 0);
+					pos.x /= Constants.SCREEN_SCALE;
+					pos.y /= Constants.SCREEN_SCALE;
+					return Math.abs(x - pos.x) <= 150 && Math.abs(y - pos.y) <= 24;
+				};
+
+				_this.container.addChild(row);
+				_this.addGuiObject(row);
+			})(links[li]);
 		}
 	}
 	
 	CreditsState.prototype.onMouseDown = function(x, y) {
-		this.hide();
+		var handled = false;
+		for (var i = 0; i < this.gui.length; i++) {
+			this.gui[i].onMouseDown(x, y);
+			if (DNGUIObject.wasHandlerThisFrame) {
+				handled = true;
+			}
+		}
+		DNGUIObject.wasHandlerThisFrame = false;
+		if (!handled) {
+			this.hide();
+		}
 	};
 
 	CreditsState.prototype.hide = function() {
@@ -3164,7 +3241,6 @@ var LoginState = (function(_super) {
 	return LoginState;
 })(DNGameState);
 
-/// <reference path="references.ts" />
 var DNAssetsManager = (function() {
 	function DNAssetsManager(manifest, sound_manifest, athlases, localizable_images, progress_callback) {
 		this.imageNameToSpriteSheetName = new Object();
@@ -3381,7 +3457,6 @@ var DNAssetsManager = (function() {
 	return DNAssetsManager;
 })();
 
-/// <reference path="references.ts" />
 var DNFontDef = (function() {
 	function DNFontDef() {}
 	DNFontDef.GUI_FONT = {
@@ -3906,7 +3981,6 @@ var DNLogoPlaceholder = (function(_super) {
 	return DNLogoPlaceholder;
 })(DNGUIObject);
 
-/// <reference path="references.ts" />
 var DNPlaceholder = (function(_super) {
 	__extends(DNPlaceholder, _super);
 
@@ -5243,7 +5317,6 @@ var DNVideoPicture = (function(_super) {
 	return DNVideoPicture;
 })(DNGUIObject);
 
-/// <reference path="references.ts" />
 var DNStringManager = (function() {
 
 	// 支援的語系清單；預設 cn。圖集 all 依語系拆成 all.cn / all.tw / all.en / all.ja.png
@@ -5372,7 +5445,6 @@ var EndRoundEffect = (function(_super) {
 	return EndRoundEffect;
 })(DNGameObject);
 
-/// <reference path="references.ts" />
 var FlyingPoints = (function(_super) {
 	__extends(FlyingPoints, _super);
 
@@ -5426,7 +5498,6 @@ var FlyingPoints = (function(_super) {
 	return FlyingPoints;
 })(DNGameObject);
 
-/// <reference path="references.ts" />
 // 工作階段：登入成功後保存帳號＋session token；localStorage 持久化，重整頁面後仍帶著。
 // 後端重啟或 token 失效時，收到 401 由 GameData 清除，回到匿名本地模式。
 var Session = (function() {
@@ -5690,7 +5761,6 @@ var GameData = (function() {
 	return GameData;
 })();
 
-/// <reference path="references.ts" />
 var Jellier = (function(_super) {
 	__extends(Jellier, _super);
 
@@ -5767,7 +5837,6 @@ var Layouts = (function() {
 	return Layouts;
 })();
 
-/// <reference path="references.ts" />
 var LevelDef = (function() {
 	function LevelDef() {}
 	return LevelDef;
@@ -7714,7 +7783,6 @@ var PlayState = (function(_super) {
 	};
 	// 洗牌
 	PlayState.prototype.onShuffleTouch = function() {
-		console.log('PlayState.prototype.onShuffleTouch');
 		if (this.shufflesCount != 0 && this.state == this.STATE_NORMAL) {
 			this.shufflesCount--;
 			this.shuffleLabel.setText(this.shufflesCount.toString());
@@ -8046,7 +8114,6 @@ var PlayState = (function(_super) {
 
 // 预加载状态
 var PreloaderState = (function(_super) {
-	console.log('加载 PreloaderState > ' + 5005);
 	__extends(PreloaderState, _super);
 
 	function PreloaderState(manifest, sound_manifest, athlases, localizable_images) {
@@ -8621,9 +8688,7 @@ var SelectLevelState = (function(_super) {
 	return SelectLevelState;
 })(DNGameState);
 
-/// <reference path="references.ts" />
 var ShadeInState = (function(_super) {
-	console.log('加载 ShadeInState > ' + 5561);
 	__extends(ShadeInState, _super);
 
 	function ShadeInState(next_state) {
@@ -8661,9 +8726,7 @@ var ShadeInState = (function(_super) {
 	return ShadeInState;
 })(DNGameState);
 
-/// <reference path="references.ts" />
 var ShadeOutState = (function(_super) {
-	console.log('加载 ShadeOutState > ' + 5530);
 	__extends(ShadeOutState, _super);
 
 	function ShadeOutState() {
@@ -8692,9 +8755,7 @@ var ShadeOutState = (function(_super) {
 	return ShadeOutState;
 })(DNGameState);
 
-/// <reference path="references.ts" />
 var Skewer = (function(_super) {
-	console.log('加载 Skewer > ' + 5561);
 	__extends(Skewer, _super);
 
 	function Skewer(name) {
@@ -8722,9 +8783,7 @@ var Skewer = (function(_super) {
 	return Skewer;
 })(DNGUIObject);
 
-/// <reference path="references.ts" />
 var Skewer2 = (function(_super) {
-	console.log('加载 Skewer2 > ' + 5591);
 	__extends(Skewer2, _super);
 
 	function Skewer2(clip) {
@@ -8744,10 +8803,7 @@ var Skewer2 = (function(_super) {
 	return Skewer2;
 })(DNGUIObject);
 
-/// <reference path="references.ts" />
 var DNSoundManager = (function() {
-	console.log('加载 DNSoundManager > ' + 5613);
-
 	// 音量持久化鍵：背景音樂 / 音效各自一筆，0~1 的數字；靜音開關另外存一筆布林
 	var SOUND_CFG_MUSIC_KEY = "sound_music_volume";
 	var SOUND_CFG_SFX_KEY = "sound_sfx_volume";
@@ -9132,6 +9188,14 @@ var Strings = (function() {
 	Strings.LB_LOADING = "LB_LOADING";
 	Strings.LB_ERROR = "LB_ERROR";
 	Strings.LB_ANONYMOUS = "LB_ANONYMOUS";
+	// 開源訊息頁：源代碼與平台連結
+	Strings.INFO_TITLE = "INFO_TITLE";
+	Strings.INFO_INTRO = "INFO_INTRO";
+	Strings.INFO_REPO = "INFO_REPO";
+	Strings.INFO_GITHUB = "INFO_GITHUB";
+	Strings.INFO_VERCEL = "INFO_VERCEL";
+	Strings.INFO_SUPABASE = "INFO_SUPABASE";
+	Strings.INFO_APNG = "INFO_APNG";
 	return Strings;
 })();;
 
@@ -9296,9 +9360,7 @@ var Tutorial = (function(_super) {
 	return Tutorial;
 })(DNGameObject);
 
-/// <reference path="references.ts" />
 var TutorialHighlighter = (function(_super) {
-	console.log('加载 TutorialHighlighter > ' + 5977);
 	__extends(TutorialHighlighter, _super);
 
 	function TutorialHighlighter(left, top, right, bottom) {
@@ -9482,7 +9544,6 @@ var AccessToPersonalData = (function() {
 var OnDownload = (function() {
 	function OnDownload() {};
 	OnDownload.download = function(imgsrc) {
-		console.log('OnDownload > ' + imgsrc);
 		var ing = document.getElementById('downloadImg'); // 获取要下载图
 		var url = 'assets/art/back/' + imgsrc + '.jpg'; // 获取图片地址
 

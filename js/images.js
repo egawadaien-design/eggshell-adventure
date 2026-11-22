@@ -2,7 +2,7 @@
  * 圖集（Sprite Atlas）與圖片常數定義
  * @author DaiEn
  * @Date 2026-11-21
- * @Correction 36
+ * @Correction 37
  */
 var Images = (function() {
 	//======================================================
@@ -76,6 +76,11 @@ var Images = (function() {
 	Images.CROWN_1 = "crown_1";
 	Images.CROWN_2 = "crown_2";
 	Images.CROWN_3 = "crown_3";
+
+	Images.GITHUB_1 = "github_1";
+	Images.VERCEL_1 = "vercel_1";
+	Images.LINK_1 = "link_1";
+	Images.SUPABASE_1 = "supabase_1";
 
 	Images.GUI_TOP = "gui_top"; // 取 all 群組第 14 幀
 	Images.GUI_BOTTOM = "gui_bottom";
@@ -1307,12 +1312,22 @@ var athlases = [{
 		"frames": [
 			[0, 0, 64, 64],  // 0 金皇冠（第1名）
 			[0, 64, 64, 64], // 1 銀皇冠（第2名）
-			[0, 128, 64, 64] // 2 青銅鑽（第3名）
+			[0, 128, 64, 64], // 2 青銅鑽（第3名）
+			
+			[0, 192, 32, 32], // github
+			[32, 192, 32, 32], // vercel
+			[0, 224, 32, 32], // LINK
+			[32, 224, 32, 32] // supabase
 		],
 		"animations": {
 			"crown_1": [0],
 			"crown_2": [1],
-			"crown_3": [2]
+			"crown_3": [2],
+			
+			"github_1": [3],
+			"vercel_1": [4],
+			"link_1": [5],
+			"supabase_1": [6]
 		}
 	}
 ];

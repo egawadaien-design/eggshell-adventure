@@ -1,7 +1,7 @@
 /*
 	@author: DaiEn
 	@Date: 2026-11-21
-	@Correction: 7
+	@Correction: 9
 */
 (function () {
 	'use strict';
@@ -61,7 +61,15 @@
 			LB_LEAD_SUFFIX: '%的人',
 			LB_LOADING: '读取排行榜…',
 			LB_ERROR: '排行榜读取失败',
-			LB_ANONYMOUS: '登入后可查看自身排行'
+			LB_ANONYMOUS: '登入后可查看自身排行',
+			// 开源信息页：源代码与平台链接
+			INFO_TITLE: '蛋壳冒险源代码',
+			INFO_INTRO: '本游戏开源专案与后端服务连结如下，点击图示前往官方网站。',
+			INFO_REPO: '源代码库（GitHub）',
+			INFO_GITHUB: 'GitHub 官方网站',
+			INFO_VERCEL: 'Vercel 官方网站',
+			INFO_SUPABASE: 'Supabase 官方网站',
+			INFO_APNG: 'APNG 工具'
 		},
 
 		tw: {
@@ -116,7 +124,15 @@
 			LB_LEAD_SUFFIX: '%的人',
 			LB_LOADING: '讀取排行榜…',
 			LB_ERROR: '排行榜讀取失敗',
-			LB_ANONYMOUS: '登入後可查看自身排行'
+			LB_ANONYMOUS: '登入後可查看自身排行',
+			// 開源訊息頁：源代碼與平台連結
+			INFO_TITLE: '蛋殼冒險源代碼',
+			INFO_INTRO: '本遊戲開源專案與後端服務連結如下，點擊圖示前往官方網站。',
+			INFO_REPO: '源代碼庫（GitHub）',
+			INFO_GITHUB: 'GitHub 官方網站',
+			INFO_VERCEL: 'Vercel 官方網站',
+			INFO_SUPABASE: 'Supabase 官方網站',
+			INFO_APNG: 'APNG 工具'
 		},
 
 		en: {
@@ -171,7 +187,15 @@
 			LB_LEAD_SUFFIX: '% of players',
 			LB_LOADING: 'Loading ranking…',
 			LB_ERROR: 'Failed to load ranking',
-			LB_ANONYMOUS: 'Sign in to see your rank'
+			LB_ANONYMOUS: 'Sign in to see your rank',
+			// Info page: source code and platform links
+			INFO_TITLE: 'Eggshell Adventure Source Code',
+			INFO_INTRO: 'Project and service links below. Tap an icon to visit the official site.',
+			INFO_REPO: 'Source Repository (GitHub)',
+			INFO_GITHUB: 'GitHub Official Site',
+			INFO_VERCEL: 'Vercel Official Site',
+			INFO_SUPABASE: 'Supabase Official Site',
+			INFO_APNG: 'APNG Tool'
 		},
 
 		ja: {
@@ -226,7 +250,15 @@
 			LB_LEAD_SUFFIX: '%の人',
 			LB_LOADING: 'ランキングを読み込み中…',
 			LB_ERROR: 'ランキングの読み込みに失敗しました',
-			LB_ANONYMOUS: 'ログインすると自分の順位を表示できます'
+			LB_ANONYMOUS: 'ログインすると自分の順位を表示できます',
+			// 情報ページ：ソースコードとプラットフォームリンク
+			INFO_TITLE: 'エッグアドベンチャー ソースコード',
+			INFO_INTRO: 'プロジェクトとサービスのリンクです。アイコンをタップして公式サイトへ。',
+			INFO_REPO: 'リポジトリ（GitHub）',
+			INFO_GITHUB: 'GitHub 公式サイト',
+			INFO_VERCEL: 'Vercel 公式サイト',
+			INFO_SUPABASE: 'Supabase 公式サイト',
+			INFO_APNG: 'APNG ツール'
 		}
 	};
 
