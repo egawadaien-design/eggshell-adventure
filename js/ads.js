@@ -68,7 +68,7 @@ var Ads = (function() {
 				[360, 110, 180, 110],// 6 下排第 3 格
 				[540, 110, 180, 110] // 7 下排第 4 格
 			],
-			loopCount: 3,// 循環 3 次後停在最後一格
+			loopCount: 0,// 循環 3 次後停在最後一格
 			url: "https://apng.top",
 			weight: 1,
 			intervalMs: 90000// 廣告停留時間
