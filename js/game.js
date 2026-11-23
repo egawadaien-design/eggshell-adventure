@@ -19,7 +19,7 @@ function init() {
 			video_s: Images.MAIN_MENU_VIDEO_S2,
 			video_e: Images.MAIN_MENU_VIDEO_E2,
 			back: Images.MAIN_MENU_BACK2
-		},
+		}/*,
 		{
 			video_s: Images.MAIN_MENU_VIDEO_S3,
 			video_e: Images.MAIN_MENU_VIDEO_E3,
@@ -29,7 +29,7 @@ function init() {
 			video_s: Images.MAIN_MENU_VIDEO_S4,
 			video_e: Images.MAIN_MENU_VIDEO_E4,
 			back: Images.MAIN_MENU_BACK4
-		}
+		}*/
 	];
 	var menu_pick = menu_groups[Math.floor(Math.random() * menu_groups.length)];
 	// 主片路徑為空（null / 空字串）時保留 null：影片層會跳過開場，直接循環播放 E 段
